@@ -1,0 +1,207 @@
+package com.example.autoclickerfusionbuild
+
+import android.accessibilityservice.AccessibilityService
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.provider.Settings
+import android.util.Log
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.TextView
+
+class OverlayService : Service() {
+
+    private lateinit var overlayView: View
+    private lateinit var windowManager: WindowManager
+    private lateinit var closeButtonView: View
+
+    override fun onCreate() {
+        super.onCreate()
+        // Affichage de l'overlay principal
+        val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        overlayView = inflater.inflate(R.layout.floating_window, null)
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            android.graphics.PixelFormat.TRANSLUCENT
+        )
+        windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
+        windowManager.addView(overlayView, params)
+
+///////////////////////////////////////
+        val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
+
+        ///////////////////////////////////////
+        var autoclickMenuView = inflater.inflate(R.layout.autoclick_menu, null)
+        val autoclickMenuParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            android.graphics.PixelFormat.TRANSLUCENT
+        )
+        autoclickMenuParams.x = -500  // Position du bouton sur l'écran
+        autoclickMenuParams.y = -1000  // Position du bouton sur l'écran
+        windowManager.addView(autoclickMenuView, autoclickMenuParams)
+        val startClickButtonM = autoclickMenuView.findViewById<Button>(R.id.startClickButton)
+
+        startClickButtonM.setOnClickListener {
+
+//            if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
+//                val autoclickService = AutoclickService.instance
+//                if (autoclickService != null) {
+//                    // Ajouter un délai de 2 secondes (2000 ms) avant d'exécuter performClick
+//                    Handler(Looper.getMainLooper()).postDelayed({
+//                        autoclickService.performClick(0f, 0f)
+//                        showClickIndicator(indicatorContainer, 500f, 500f)
+//                        showClickIndicator(indicatorContainer, 400f, 400f)
+//                        showClickIndicator(indicatorContainer, 300f, 300f)
+//                        showClickIndicator(indicatorContainer, 0f, 0f)
+//                        Log.d("CLICK?", "Appel à performClick réussi?")
+//                    }, 2000)
+//                } else {
+//                    Log.e("CLICK?", "AutoclickService n'est pas disponible.")
+//                }
+//            } else {
+//                Log.e("CLICK?", "MyAccessibilityService n'est pas disponible.")
+//                val intent = Intent(this, AccessibilityPermissionActivity::class.java)
+//                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Important pour démarrer depuis un service
+//                startActivity(intent)
+//            }
+
+
+            if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
+                val autoclickService = AutoclickService.instance
+
+//                showClickIndicator(indicatorContainer, 230f, 200f)
+//                showClickIndicator(indicatorContainer, 200f, 0f)
+//                showClickIndicator(indicatorContainer, 0f, 180f)
+//                if (autoclickService != null) {
+//                    autoclickService.performClick(230f, 200f)
+//                }
+//                Log.d(null,"CLIQUE!!!!!!")
+                showClickIndicator(indicatorContainer, 1200f, 500f)
+                showClickIndicator(indicatorContainer, 1200f, 0f)
+                showClickIndicator(indicatorContainer, 0f, 500f)
+                if (autoclickService != null) {
+                    autoclickService.performClick(1200f, 500f)
+                }
+                Log.d(null,"CLIQUE!!!!!!")
+            } else {
+                Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
+                val intent = Intent(this, AccessibilityPermissionActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Important pour démarrer depuis un service
+                startActivity(intent)
+            }
+
+        }
+
+        ///////////////////////////////////////
+
+        // Affichage du bouton "Fermer" dans un autre overlay
+        closeButtonView = inflater.inflate(R.layout.close_button_layout, null)
+        val closeButtonParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            android.graphics.PixelFormat.TRANSLUCENT
+        )
+        closeButtonParams.x = 500  // Position du bouton sur l'écran
+        closeButtonParams.y = -2500  // Position du bouton sur l'écran
+        windowManager.addView(closeButtonView, closeButtonParams)
+
+        // Gérer le clic sur le bouton "Fermer"
+        val closeButton = closeButtonView.findViewById<TextView>(R.id.close_button)
+        closeButton.setOnClickListener {
+            stopSelf() // Arrête le service
+            windowManager.removeView(overlayView) // Supprime l'overlay principal
+            windowManager.removeView(closeButtonView) // Supprime l'overlay du bouton
+        }
+    }
+
+//    private fun isAccessibilityServiceEnabled(): Boolean {
+//        val service = "${packageName}/${packageName}.AutoclickService"
+//        val enabledServices = Settings.Secure.getString(
+//            contentResolver,
+//            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+//        )
+//        val accessibilityEnabled = Settings.Secure.getInt(
+//            contentResolver,
+//            Settings.Secure.ACCESSIBILITY_ENABLED,
+//            0
+//        )
+//        return accessibilityEnabled == 1 && enabledServices?.contains(service) == true
+//    }
+
+
+    private fun isAccessibilityServiceEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {
+        val enabledServices = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        )
+
+        if (enabledServices == null) {
+            Log.e("AccessibilityCheck", "Aucun service d'accessibilité activé.")
+            return false
+        }
+
+        val serviceString = "${context.packageName}/${service.name}"
+        val enabledServicesList = enabledServices.split(':')
+
+        // Ajout de logs pour vérifier les services activés
+        Log.d("AccessibilityCheck", "Services d'accessibilité activés : $enabledServices")
+        Log.d("AccessibilityCheck", "Service recherché : $serviceString")
+
+        val isServiceEnabled = enabledServicesList.contains(serviceString)
+
+        if (isServiceEnabled) {
+            Log.d("AccessibilityCheck", "Le service $serviceString est activé.")
+        } else {
+            Log.w("AccessibilityCheck", "Le service $serviceString n'est pas activé.")
+        }
+
+        return isServiceEnabled
+    }
+
+
+    private fun showClickIndicator(container: FrameLayout, x: Float, y: Float) {
+        // Créer une vue circulaire pour représenter le clic
+        val indicator = View(this).apply {
+            layoutParams = FrameLayout.LayoutParams(100, 100).apply {
+                leftMargin = (x).toInt() // Centrer le cercle
+                topMargin = (y).toInt()
+            }
+            setBackgroundColor(Color.RED)
+            alpha = 0.7f
+        }
+        // Ajouter l'indicateur au conteneur
+        container.addView(indicator)
+        // Retirer l'indicateur après 1 seconde
+        indicator.postDelayed({ container.removeView(indicator) }, 1500)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Supprime les overlays lorsque le service est détruit
+        if (::overlayView.isInitialized) {
+            windowManager.removeView(overlayView)
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
+
+}
