@@ -39,10 +39,8 @@ class OverlayService : Service() {
         windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
         windowManager.addView(overlayView, params)
 
-///////////////////////////////////////
         val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
 
-        ///////////////////////////////////////
         var autoclickMenuView = inflater.inflate(R.layout.autoclick_menu, null)
         val autoclickMenuParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -58,39 +56,9 @@ class OverlayService : Service() {
 
         startClickButtonM.setOnClickListener {
 
-//            if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
-//                val autoclickService = AutoclickService.instance
-//                if (autoclickService != null) {
-//                    // Ajouter un délai de 2 secondes (2000 ms) avant d'exécuter performClick
-//                    Handler(Looper.getMainLooper()).postDelayed({
-//                        autoclickService.performClick(0f, 0f)
-//                        showClickIndicator(indicatorContainer, 500f, 500f)
-//                        showClickIndicator(indicatorContainer, 400f, 400f)
-//                        showClickIndicator(indicatorContainer, 300f, 300f)
-//                        showClickIndicator(indicatorContainer, 0f, 0f)
-//                        Log.d("CLICK?", "Appel à performClick réussi?")
-//                    }, 2000)
-//                } else {
-//                    Log.e("CLICK?", "AutoclickService n'est pas disponible.")
-//                }
-//            } else {
-//                Log.e("CLICK?", "MyAccessibilityService n'est pas disponible.")
-//                val intent = Intent(this, AccessibilityPermissionActivity::class.java)
-//                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Important pour démarrer depuis un service
-//                startActivity(intent)
-//            }
-
-
             if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
                 val autoclickService = AutoclickService.instance
 
-//                showClickIndicator(indicatorContainer, 230f, 200f)
-//                showClickIndicator(indicatorContainer, 200f, 0f)
-//                showClickIndicator(indicatorContainer, 0f, 180f)
-//                if (autoclickService != null) {
-//                    autoclickService.performClick(230f, 200f)
-//                }
-//                Log.d(null,"CLIQUE!!!!!!")
                 showClickIndicator(indicatorContainer, 1200f, 500f)
                 showClickIndicator(indicatorContainer, 1200f, 0f)
                 showClickIndicator(indicatorContainer, 0f, 500f)
@@ -107,7 +75,6 @@ class OverlayService : Service() {
 
         }
 
-        ///////////////////////////////////////
 
         // Affichage du bouton "Fermer" dans un autre overlay
         closeButtonView = inflater.inflate(R.layout.close_button_layout, null)
@@ -128,22 +95,9 @@ class OverlayService : Service() {
             stopSelf() // Arrête le service
             windowManager.removeView(overlayView) // Supprime l'overlay principal
             windowManager.removeView(closeButtonView) // Supprime l'overlay du bouton
+            windowManager.removeView(autoclickMenuView)
         }
     }
-
-//    private fun isAccessibilityServiceEnabled(): Boolean {
-//        val service = "${packageName}/${packageName}.AutoclickService"
-//        val enabledServices = Settings.Secure.getString(
-//            contentResolver,
-//            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-//        )
-//        val accessibilityEnabled = Settings.Secure.getInt(
-//            contentResolver,
-//            Settings.Secure.ACCESSIBILITY_ENABLED,
-//            0
-//        )
-//        return accessibilityEnabled == 1 && enabledServices?.contains(service) == true
-//    }
 
 
     private fun isAccessibilityServiceEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {

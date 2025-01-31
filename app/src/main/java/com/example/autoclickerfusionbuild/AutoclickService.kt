@@ -20,18 +20,6 @@ class AutoclickService : AccessibilityService() {
         var instance: AutoclickService? = null
     }
 
-//    override fun onServiceConnected() {
-//        super.onServiceConnected()
-//        val info = AccessibilityServiceInfo()
-//        info.flags = AccessibilityServiceInfo.FLAG_REQUEST_TOUCH_EXPLORATION_MODE
-//        info.eventTypes = AccessibilityEvent.TYPE_VIEW_CLICKED
-//        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-//        info.notificationTimeout = 100
-//        serviceInfo = info
-//
-//        instance = this
-//        Log.d("ACCESSIBILITY", "Service d'accessibilité connecté.")
-//    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -48,33 +36,6 @@ class AutoclickService : AccessibilityService() {
         instance = this
     }
 
-//    fun performClick(x: Float, y: Float) {
-//        val path = Path().apply {
-//            moveTo(x, y)
-//        }
-//        val gestureBuilder = GestureDescription.Builder()
-//        gestureBuilder.addStroke(
-//            GestureDescription.StrokeDescription(
-//                path,
-//                1,    // Délai avant le clic (en ms)
-//                100   // Durée du clic (en ms)
-//            )
-//        )
-//        dispatchGesture(
-//            gestureBuilder.build(),
-//            object : AccessibilityService.GestureResultCallback() {
-//                override fun onCompleted(gestureDescription: GestureDescription?) {
-//                    Log.d("CLICK", "Geste simulé avec succès.")
-//                    showClickIndicator(x, y)
-//                }
-//
-//                override fun onCancelled(gestureDescription: GestureDescription?) {
-//                    Log.e("CLICK", "Le geste a été annulé.")
-//                }
-//            },
-//            null
-//        )
-//    }
 
     fun performClick(x: Float, y: Float) {
         val path = Path().apply {
