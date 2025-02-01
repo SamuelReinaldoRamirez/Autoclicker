@@ -28,7 +28,11 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        // Affichage de l'overlay principal
+        setupOverlayView()
+        setupAutoclickMenu()
+    }
+
+    private fun setupOverlayView() {
         val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         overlayView = inflater.inflate(R.layout.floating_window, null)
         val params = WindowManager.LayoutParams(
@@ -40,96 +44,86 @@ class OverlayService : Service() {
         )
         windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
         windowManager.addView(overlayView, params)
+    }
 
-        val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
-
-        var autoclickMenuView = inflater.inflate(R.layout.autoclick_menu, null)
+    private fun setupAutoclickMenu() {
+        val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        val autoclickMenuView = inflater.inflate(R.layout.autoclick_menu, null)
         val autoclickMenuParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             android.graphics.PixelFormat.TRANSLUCENT
-        )
-        autoclickMenuParams.x = -500  // Position du bouton sur l'écran
-        autoclickMenuParams.y = -1000  // Position du bouton sur l'écran
+        ).apply {
+            x = -500
+            y = -1000
+        }
         windowManager.addView(autoclickMenuView, autoclickMenuParams)
+        setupDraggableMenu(autoclickMenuView, autoclickMenuParams)
+        setupButtons(autoclickMenuView)
+    }
 
+    private fun setupDraggableMenu(view: View, params: WindowManager.LayoutParams) {
         var lastX = 0
         var lastY = 0
         var initialTouchX = 0
         var initialTouchY = 0
 
-        autoclickMenuView.setOnTouchListener { _, event ->
+        view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    lastX = autoclickMenuParams.x
-                    lastY = autoclickMenuParams.y
+                    lastX = params.x
+                    lastY = params.y
                     initialTouchX = event.rawX.toInt()
                     initialTouchY = event.rawY.toInt()
                     true
                 }
-
                 MotionEvent.ACTION_MOVE -> {
-                    autoclickMenuParams.x = lastX + (event.rawX.toInt() - initialTouchX)
-                    autoclickMenuParams.y = lastY + (event.rawY.toInt() - initialTouchY)
-                    windowManager.updateViewLayout(autoclickMenuView, autoclickMenuParams)
+                    params.x = lastX + (event.rawX.toInt() - initialTouchX)
+                    params.y = lastY + (event.rawY.toInt() - initialTouchY)
+                    windowManager.updateViewLayout(view, params)
                     true
                 }
-
                 else -> false
             }
         }
+    }
 
-        val xClick = autoclickMenuView.findViewById<EditText>(R.id.xClick)
-        val yClick = autoclickMenuView.findViewById<EditText>(R.id.yClick)
-
-        val startClickButtonM = autoclickMenuView.findViewById<Button>(R.id.startClickButton)
+    private fun setupButtons(view: View) {
+        val xClick = view.findViewById<EditText>(R.id.xClick)
+        val yClick = view.findViewById<EditText>(R.id.yClick)
+        val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
+        val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
+        val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
 
         startClickButtonM.setOnClickListener {
-
-            // Convertir en Int (en gérant le cas où ce n'est pas un nombre)
-            val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
-            val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
-
-            if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
-                val autoclickService = AutoclickService.instance
-
-
-//                showClickIndicator(indicatorContainer, 1200f, 500f)
-//                showClickIndicator(indicatorContainer, 1200f, 0f)
-//                showClickIndicator(indicatorContainer, 0f, 500f)
-//                if (autoclickService != null) {
-//                    autoclickService.performClick(1200f, 500f)
-//                }
-
-                showClickIndicator(indicatorContainer, xClickInt, yClickInt)
-                showClickIndicator(indicatorContainer, xClickInt, 0f)
-                showClickIndicator(indicatorContainer, 0f, yClickInt)
-                if (autoclickService != null) {
-                    autoclickService.performClick(xClickInt, yClickInt)
-                }
-
-
-                Log.d(null,"CLIQUE!!!!!!")
-            } else {
-                Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
-                val intent = Intent(this, AccessibilityPermissionActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Important pour démarrer depuis un service
-                startActivity(intent)
-            }
-
+            handleAutoclick(xClick, yClick, indicatorContainer)
         }
-
-        // Gérer le clic sur le bouton "Fermer"
-        val closeButton = autoclickMenuView.findViewById<ImageButton>(R.id.closeButton)
         closeButton.setOnClickListener {
-            stopSelf() // Arrête le service
-            windowManager.removeView(overlayView) // Supprime l'overlay principal
-            windowManager.removeView(autoclickMenuView)
+            stopSelf()
+            windowManager.removeView(overlayView)
+            windowManager.removeView(view)
         }
+    }
 
+    private fun handleAutoclick(xClick: EditText, yClick: EditText, indicatorContainer: FrameLayout) {
+        val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
+        val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
 
+        if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
+            val autoclickService = AutoclickService.instance
+            showClickIndicator(indicatorContainer, xClickInt, yClickInt)
+            showClickIndicator(indicatorContainer, xClickInt, 0f)
+            showClickIndicator(indicatorContainer, 0f, yClickInt)
+            autoclickService?.performClick(xClickInt, yClickInt)
+            Log.d(null, "CLIQUE!!!!!!")
+        } else {
+            Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
+            val intent = Intent(this, AccessibilityPermissionActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
     }
 
 
