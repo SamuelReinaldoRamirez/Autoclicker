@@ -58,7 +58,7 @@ class AutoclickService : AccessibilityService() {
             object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
                     Log.d("CLICK", "Geste simulé avec succès.")
-                    showClickIndicator(x, y)
+//                    showClickIndicator(x, y)
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription?) {

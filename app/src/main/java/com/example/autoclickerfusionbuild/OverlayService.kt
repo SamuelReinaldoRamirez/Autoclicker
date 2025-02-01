@@ -12,17 +12,19 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.TextView
 
 class OverlayService : Service() {
 
     private lateinit var overlayView: View
     private lateinit var windowManager: WindowManager
-    private lateinit var closeButtonView: View
 
     override fun onCreate() {
         super.onCreate()
@@ -52,19 +54,63 @@ class OverlayService : Service() {
         autoclickMenuParams.x = -500  // Position du bouton sur l'écran
         autoclickMenuParams.y = -1000  // Position du bouton sur l'écran
         windowManager.addView(autoclickMenuView, autoclickMenuParams)
+
+        var lastX = 0
+        var lastY = 0
+        var initialTouchX = 0
+        var initialTouchY = 0
+
+        autoclickMenuView.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastX = autoclickMenuParams.x
+                    lastY = autoclickMenuParams.y
+                    initialTouchX = event.rawX.toInt()
+                    initialTouchY = event.rawY.toInt()
+                    true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    autoclickMenuParams.x = lastX + (event.rawX.toInt() - initialTouchX)
+                    autoclickMenuParams.y = lastY + (event.rawY.toInt() - initialTouchY)
+                    windowManager.updateViewLayout(autoclickMenuView, autoclickMenuParams)
+                    true
+                }
+
+                else -> false
+            }
+        }
+
+        val xClick = autoclickMenuView.findViewById<EditText>(R.id.xClick)
+        val yClick = autoclickMenuView.findViewById<EditText>(R.id.yClick)
+
         val startClickButtonM = autoclickMenuView.findViewById<Button>(R.id.startClickButton)
 
         startClickButtonM.setOnClickListener {
 
+            // Convertir en Int (en gérant le cas où ce n'est pas un nombre)
+            val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
+            val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
+
             if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
                 val autoclickService = AutoclickService.instance
 
-                showClickIndicator(indicatorContainer, 1200f, 500f)
-                showClickIndicator(indicatorContainer, 1200f, 0f)
-                showClickIndicator(indicatorContainer, 0f, 500f)
+
+//                showClickIndicator(indicatorContainer, 1200f, 500f)
+//                showClickIndicator(indicatorContainer, 1200f, 0f)
+//                showClickIndicator(indicatorContainer, 0f, 500f)
+//                if (autoclickService != null) {
+//                    autoclickService.performClick(1200f, 500f)
+//                }
+
+                showClickIndicator(indicatorContainer, xClickInt, yClickInt)
+                showClickIndicator(indicatorContainer, xClickInt, 0f)
+                showClickIndicator(indicatorContainer, 0f, yClickInt)
                 if (autoclickService != null) {
-                    autoclickService.performClick(1200f, 500f)
+                    autoclickService.performClick(xClickInt, yClickInt)
                 }
+
+
                 Log.d(null,"CLIQUE!!!!!!")
             } else {
                 Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
@@ -75,28 +121,15 @@ class OverlayService : Service() {
 
         }
 
-
-        // Affichage du bouton "Fermer" dans un autre overlay
-        closeButtonView = inflater.inflate(R.layout.close_button_layout, null)
-        val closeButtonParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-            android.graphics.PixelFormat.TRANSLUCENT
-        )
-        closeButtonParams.x = 500  // Position du bouton sur l'écran
-        closeButtonParams.y = -2500  // Position du bouton sur l'écran
-        windowManager.addView(closeButtonView, closeButtonParams)
-
         // Gérer le clic sur le bouton "Fermer"
-        val closeButton = closeButtonView.findViewById<TextView>(R.id.close_button)
+        val closeButton = autoclickMenuView.findViewById<ImageButton>(R.id.closeButton)
         closeButton.setOnClickListener {
             stopSelf() // Arrête le service
             windowManager.removeView(overlayView) // Supprime l'overlay principal
-            windowManager.removeView(closeButtonView) // Supprime l'overlay du bouton
             windowManager.removeView(autoclickMenuView)
         }
+
+
     }
 
 

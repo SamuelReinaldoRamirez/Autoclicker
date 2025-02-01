@@ -12,41 +12,6 @@
         android:layout_gravity="center"
         android:textColor="@android:color/white" />
 
-<!--    <LinearLayout-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent"-->
-<!--        android:orientation="vertical"-->
-<!--        android:gravity="center"-->
-<!--        android:padding="16dp">-->
-
-<!--        &lt;!&ndash; Titre de l'application &ndash;&gt;-->
-<!--        <TextView-->
-<!--            android:id="@+id/appTitle"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Autoclicker Demo"-->
-<!--            android:textSize="24sp"-->
-<!--            android:textStyle="bold"-->
-<!--            android:gravity="center"-->
-<!--            android:layout_marginBottom="24dp" />-->
-
-<!--        &lt;!&ndash; Bouton pour simuler un clic &ndash;&gt;-->
-<!--        <Button-->
-<!--            android:id="@+id/startClickButton"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Simuler un clic"-->
-<!--            android:padding="12dp"-->
-<!--            android:layout_marginBottom="16dp" />-->
-
-<!--        &lt;!&ndash; Bouton pour ouvrir les paramètres d'accessibilité &ndash;&gt;-->
-<!--        <Button-->
-<!--            android:id="@+id/openAccessibilitySettings"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Activer le service d'accessibilité"-->
-<!--            android:padding="12dp" />-->
-<!--    </LinearLayout>-->
 
     <!-- Conteneur pour l'indicateur visuel -->
     <FrameLayout
