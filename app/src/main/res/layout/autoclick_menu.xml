@@ -8,46 +8,84 @@
     android:elevation="8dp"
     android:background="@drawable/border_layout">
 
-    <!-- Croix rouge (fermeture) -->
-    <ImageButton
-        android:id="@+id/closeButton"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="end"
-        android:layout_marginEnd="4dp"
-        android:layout_marginTop="4dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_delete"
-        app:tint="@android:color/holo_red_dark" />
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="2"
+        android:rowCount="1">
 
+        <!-- Flèche blanche (Réduire) -->
+        <ImageButton
+            android:id="@+id/collapseButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_media_play"
+            android:background="@android:color/transparent"
+            android:contentDescription="Réduire"
+            android:layout_column="0"
+            android:layout_gravity="start"/>
+
+
+        <!-- Croix rouge (Fermeture) -->
+        <ImageButton
+            android:id="@+id/closeButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginTop="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_gravity="end"
+            android:layout_column="1"
+            android:src="@android:drawable/ic_delete"
+            app:tint="@android:color/holo_red_dark" />
+    </GridLayout>
+
+    <LinearLayout
+        android:id="@+id/contentLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="visible">
     <!-- Premier champ (Int) -->
-    <EditText
-        android:id="@+id/xClick"
-        android:layout_width="100dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="12dp"
-        android:inputType="number"
-        android:textSize="12sp"
-        android:hint="X click"/>
+        <EditText
+            android:id="@+id/xClick"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:inputType="number"
+            android:textSize="12sp"
+            android:hint="X click"/>
 
-    <!-- Deuxième champ (Int) -->
-    <EditText
-        android:id="@+id/yClick"
-        android:layout_width="100dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="8dp"
-        android:inputType="number"
-        android:textSize="12sp"
-        android:hint="Y click"/>
+        <!-- Deuxième champ (Int) -->
+        <EditText
+            android:id="@+id/yClick"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp"
+            android:inputType="number"
+            android:textSize="12sp"
+            android:hint="Y click"/>
 
-        <!-- Bouton principal -->
-    <Button
-        android:id="@+id/startClickButton"
-        android:layout_width="100dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="12dp"
-        android:text="Simuler"
-        android:textSize="12sp"
-        android:padding="8dp"/>
+            <!-- Bouton principal -->
+        <Button
+            android:id="@+id/startClickButton"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="12dp"
+            android:text="Simuler"
+            android:textSize="12sp"
+            android:padding="8dp"/>
+
+<!--        <Button-->
+<!--            android:id="@+id/createRoutine"-->
+<!--            android:layout_width="100dp"-->
+<!--            android:layout_height="40dp"-->
+<!--            android:layout_marginTop="12dp"-->
+<!--            android:text="créer routine"-->
+<!--            android:textSize="12sp"-->
+<!--            android:padding="8dp"/>-->
+
+    </LinearLayout>
+
 
 </LinearLayout>

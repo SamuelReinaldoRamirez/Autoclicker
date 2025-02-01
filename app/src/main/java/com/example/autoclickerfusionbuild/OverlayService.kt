@@ -19,6 +19,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 
 class OverlayService : Service() {
@@ -96,6 +97,26 @@ class OverlayService : Service() {
         val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
         val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
         val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
+
+        val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
+        val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
+
+        var isCollapsed = false
+
+        collapseButton.setOnClickListener {
+            if (isCollapsed) {
+                // Ré-affiche le contenu
+                contentLayout.visibility = View.VISIBLE
+                collapseButton.setImageResource(android.R.drawable.ic_media_play) // Icône "Play"
+            } else {
+                // Cache le contenu
+                contentLayout.visibility = View.GONE
+                collapseButton.setImageResource(android.R.drawable.ic_media_pause) // Icône "Pause"
+            }
+            isCollapsed = !isCollapsed
+        }
+
+
 
         startClickButtonM.setOnClickListener {
             handleAutoclick(xClick, yClick, indicatorContainer)
