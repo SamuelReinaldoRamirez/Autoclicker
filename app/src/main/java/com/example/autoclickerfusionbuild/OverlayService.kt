@@ -5,15 +5,18 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
@@ -26,6 +29,7 @@ class OverlayService : Service() {
 
     private lateinit var overlayView: View
     private lateinit var windowManager: WindowManager
+    private lateinit var gestureDetector: GestureDetector
 
     override fun onCreate() {
         super.onCreate()
@@ -40,11 +44,13 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            android.graphics.PixelFormat.TRANSLUCENT
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
         )
         windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
         windowManager.addView(overlayView, params)
+
     }
 
     private fun setupAutoclickMenu() {
@@ -54,7 +60,9 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+//                    or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            ,
             android.graphics.PixelFormat.TRANSLUCENT
         ).apply {
             x = -500
@@ -97,11 +105,112 @@ class OverlayService : Service() {
         val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
         val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
         val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
-
         val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
         val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
-
         var isCollapsed = false
+
+        val createRoutineButton = view.findViewById<Button>(R.id.createRoutine)
+        var isCreatingRoutine = false
+        val clickPositions = mutableListOf<Pair<Float, Float>>()
+
+        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        val fullScreenTouchableView = inflater.inflate(R.layout.transparent_overlay, null)
+
+
+
+        createRoutineButton.setOnClickListener {
+            isCreatingRoutine = !isCreatingRoutine
+            if (isCreatingRoutine) {
+                createRoutineButton.text = "Enregistrer"
+
+                gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+                    override fun onDown(event: MotionEvent): Boolean {
+                        val x = event.x
+                        val y = event.y
+                        Log.d("Gesture", "Touché en : ($x, $y)")
+                        return super.onDown(event)
+                    }
+                })
+
+                windowManager.removeView(overlayView)
+
+
+                val layoutParams = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+//                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+//                            or
+                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    PixelFormat.TRANSLUCENT
+                )
+
+                // Ajouter la vue flottante
+                windowManager.addView(fullScreenTouchableView, layoutParams)
+
+
+                fullScreenTouchableView.setOnTouchListener { _, event ->
+                    Log.d("AAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBB")
+                    // Récupérer les paramètres actuels
+                    // Attendre 50ms avant de rendre la vue non touchable
+//                    Handler(Looper.getMainLooper()).postDelayed({
+                        val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
+                        layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+//                    }, 50)
+
+                    // Dispatcher l'événement pour qu'il passe à la vue en dessous
+//                    view.dispatchTouchEvent(event)
+//                    handleAutoclick(xClick, yClick, indicatorContainer)
+
+                    // Attendre 50ms avant de rendre la vue non touchable
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        handleAutoclick(xClick, yClick, indicatorContainer)
+//                        val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
+                        layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                        windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+                    }, 250)
+
+                    false // Laisse l'événement continuer son chemin
+                }
+
+                // Capturer les événements tactiles
+//                fullScreenTouchableView.setOnTouchListener { v, event ->
+//                    if (event.action == MotionEvent.ACTION_DOWN) {
+//                        val x = event.x
+//                        val y = event.y
+//                        clickPositions.add(Pair(x, y))
+//
+//                        // Mettre à jour les EditText si tu veux afficher les coordonnées
+//                        xClick.setText(x.toString())
+//                        yClick.setText(y.toString())
+//                    }
+//
+//                    // Applique l'autoclick uniquement une fois, sans boucle infinie
+//                    if (!isAutoclickInProgress) {
+//                        isAutoclickInProgress = true
+//                        handleAutoclick(xClick, yClick, indicatorContainer)
+//                    }
+//                    // Ou passer l'événement à d'autres vues ou objets
+//                    false // Consommer l'événement
+//                }
+
+                // Ajoutez la logique pour "enregistrer" ici, si nécessaire
+            } else {
+                createRoutineButton.text = "Créer routine"
+                windowManager.removeView(fullScreenTouchableView)
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    PixelFormat.TRANSLUCENT
+                )
+                windowManager.addView(overlayView, params)
+                // Ajoutez la logique pour "créer" ici, si nécessaire
+            }
+        }
 
         collapseButton.setOnClickListener {
             if (isCollapsed) {
@@ -116,8 +225,6 @@ class OverlayService : Service() {
             isCollapsed = !isCollapsed
         }
 
-
-
         startClickButtonM.setOnClickListener {
             handleAutoclick(xClick, yClick, indicatorContainer)
         }
@@ -127,6 +234,8 @@ class OverlayService : Service() {
             windowManager.removeView(view)
         }
     }
+
+    var isAutoclickInProgress = false
 
     private fun handleAutoclick(xClick: EditText, yClick: EditText, indicatorContainer: FrameLayout) {
         val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
@@ -139,6 +248,8 @@ class OverlayService : Service() {
             showClickIndicator(indicatorContainer, 0f, yClickInt)
             autoclickService?.performClick(xClickInt, yClickInt)
             Log.d(null, "CLIQUE!!!!!!")
+            // Reset flag après avoir effectué le clic
+            isAutoclickInProgress = false
         } else {
             Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
             val intent = Intent(this, AccessibilityPermissionActivity::class.java)
