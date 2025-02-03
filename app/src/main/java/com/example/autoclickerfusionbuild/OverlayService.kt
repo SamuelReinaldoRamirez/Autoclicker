@@ -243,9 +243,9 @@ class OverlayService : Service() {
 
         if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
             val autoclickService = AutoclickService.instance
-            showClickIndicator(indicatorContainer, xClickInt, yClickInt)
-            showClickIndicator(indicatorContainer, xClickInt, 0f)
-            showClickIndicator(indicatorContainer, 0f, yClickInt)
+//            showClickIndicator(indicatorContainer, xClickInt, yClickInt)
+//            showClickIndicator(indicatorContainer, xClickInt, 0f)
+//            showClickIndicator(indicatorContainer, 0f, yClickInt)
             autoclickService?.performClick(xClickInt, yClickInt)
             Log.d(null, "CLIQUE!!!!!!")
             // Reset flag après avoir effectué le clic
