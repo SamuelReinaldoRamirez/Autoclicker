@@ -24,6 +24,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,6 +38,8 @@ class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private lateinit var autoclickMenuParams: WindowManager.LayoutParams
     var semaphore = 0
+    // Utilisation d'un Map pour stocker les points associés à chaque ID de bouton
+    private val buttonPointsMap = mutableMapOf<Int, MutableList<Pair<Float, Float>>>()
 
     override fun onCreate() {
         super.onCreate()
@@ -136,7 +139,7 @@ class OverlayService : Service() {
     ) {
         createRoutineButton.setOnClickListener {
             if (isCreatingRoutine) {
-                stopRoutineCreation(createRoutineButton, fullScreenTouchableView)
+                stopRoutineCreation(createRoutineButton, fullScreenTouchableView, clickPositions)
             } else {
                 startRoutineCreation(createRoutineButton, fullScreenTouchableView, xClick, yClick, clickPositions)
             }
@@ -154,6 +157,8 @@ class OverlayService : Service() {
         createRoutineButton.text = "Enregistrer"
         windowManager.removeView(overlayView)
 
+        clickPositions.clear()
+
         val layoutParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -169,10 +174,35 @@ class OverlayService : Service() {
         setUpFullScreenTouchListener(fullScreenTouchableView, xClick, yClick, clickPositions)
     }
 
-    private fun stopRoutineCreation(createRoutineButton: Button, fullScreenTouchableView: View) {
+    private fun stopRoutineCreation(createRoutineButton: Button, fullScreenTouchableView: View, clickPositions: MutableList<Pair<Float, Float>>) {
         isCreatingRoutine = false
         createRoutineButton.text = "Créer routine"
         windowManager.removeView(fullScreenTouchableView)
+
+        val buttonNumber = buttonPointsMap.size + 1
+        buttonPointsMap[buttonNumber] = ArrayList(clickPositions)
+
+        // Ajouter un bouton à autoclickMenuView
+        val newButton = Button(autoclickMenuView.context).apply {
+             // Liste des IDs des boutons
+            text = "Routine $buttonNumber"
+
+
+            setOnClickListener {
+                val storedPoints = buttonPointsMap[buttonNumber]
+                storedPoints?.let { points ->
+                    Log.d("stopRoutineCreation", "Liste des points: $points")
+                    Toast.makeText(context, "Points: $points", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+        }
+
+        // Effectuer un cast explicite pour éviter l'erreur de smart cast
+        (autoclickMenuView as? ViewGroup)?.let { menuView ->
+            menuView.addView(newButton)
+            windowManager.updateViewLayout(menuView, autoclickMenuParams)
+        } ?: Log.e("stopRoutineCreation", "autoclickMenuView n'est pas un ViewGroup, impossible d'ajouter le bouton.")
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -218,6 +248,7 @@ class OverlayService : Service() {
                 Handler(Looper.getMainLooper()).postDelayed({
                     handleAutoclick(xClick, yClick, screenLocation[1].toFloat())
                     Log.d("THREAD", "handleAutoclick executed on thread: ${Thread.currentThread().name}")
+                    Log.d("LISTE DES POSITIONS CLIQUEES", clickPositions.toString())
 
                     layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
                     windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
