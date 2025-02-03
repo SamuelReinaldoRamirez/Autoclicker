@@ -117,21 +117,10 @@ class OverlayService : Service() {
         val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val fullScreenTouchableView = inflater.inflate(R.layout.transparent_overlay, null)
 
-
-
         createRoutineButton.setOnClickListener {
             isCreatingRoutine = !isCreatingRoutine
             if (isCreatingRoutine) {
                 createRoutineButton.text = "Enregistrer"
-
-                gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-                    override fun onDown(event: MotionEvent): Boolean {
-                        val x = event.x
-                        val y = event.y
-                        Log.d("Gesture", "Touché en : ($x, $y)")
-                        return super.onDown(event)
-                    }
-                })
 
                 windowManager.removeView(overlayView)
 
@@ -140,8 +129,6 @@ class OverlayService : Service() {
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-//                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-//                            or
                             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                     PixelFormat.TRANSLUCENT
                 )
@@ -155,48 +142,33 @@ class OverlayService : Service() {
 
                 fullScreenTouchableView.setOnTouchListener { _, event ->
                     Log.d("AAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBB")
-                    // Récupérer les paramètres actuels
-                    // Attendre 50ms avant de rendre la vue non touchable
-//                    Handler(Looper.getMainLooper()).postDelayed({
-                        val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
-                        layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                        windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
-//                    }, 50)
+
+                    val x = event.x
+                    val y = event.y
+                    clickPositions.add(Pair(x, y))
+
+                    // Mettre à jour les EditText si tu veux afficher les coordonnées
+                    xClick.setText(x.toString())
+                    yClick.setText(y.toString())
+
+
+                    val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
+                    layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
 
 
                     // Attendre 50ms avant de rendre la vue non touchable
                     Handler(Looper.getMainLooper()).postDelayed({
                         handleAutoclick(xClick, yClick)
-//                        val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
-                        layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
-                        windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
-                    }, 250)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                            windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+                        }, 250)
+                    }, 50)
 
                     false // Laisse l'événement continuer son chemin
                 }
 
-                // Capturer les événements tactiles
-//                fullScreenTouchableView.setOnTouchListener { v, event ->
-//                    if (event.action == MotionEvent.ACTION_DOWN) {
-//                        val x = event.x
-//                        val y = event.y
-//                        clickPositions.add(Pair(x, y))
-//
-//                        // Mettre à jour les EditText si tu veux afficher les coordonnées
-//                        xClick.setText(x.toString())
-//                        yClick.setText(y.toString())
-//                    }
-//
-//                    // Applique l'autoclick uniquement une fois, sans boucle infinie
-//                    if (!isAutoclickInProgress) {
-//                        isAutoclickInProgress = true
-//                        handleAutoclick(xClick, yClick, indicatorContainer)
-//                    }
-//                    // Ou passer l'événement à d'autres vues ou objets
-//                    false // Consommer l'événement
-//                }
-
-                // Ajoutez la logique pour "enregistrer" ici, si nécessaire
             } else {
                 createRoutineButton.text = "Créer routine"
                 windowManager.removeView(fullScreenTouchableView)
