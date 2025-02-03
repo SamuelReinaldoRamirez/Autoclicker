@@ -42,7 +42,7 @@ class AutoclickService : AccessibilityService() {
 
 
     @SuppressLint("ResourceType")
-    fun performClick(x: Float, y: Float) {
+    fun performClick(x: Float, y: Float, ydecalage: Float) {
         val path = Path().apply {
             moveTo(x, y)
         }
@@ -72,7 +72,7 @@ class AutoclickService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP
-            this.y = y.toInt() - 100 // Ajustement pour bien centrer la ligne horizontale
+            this.y = y.toInt() - 2 - ydecalage.toInt()// Ajustement pour bien centrer la ligne horizontale
         }
 
         val verticalRedLineParams = WindowManager.LayoutParams(
@@ -91,34 +91,6 @@ class AutoclickService : AccessibilityService() {
             object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
                     Log.d("CLICK", "Geste simulé avec succès.")
-
-//                    //definir les variabbles en dehors de la fonction pour utiliser moins de memoire
-//                    val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-//                    val horizontalRedLineView = inflater.inflate(R.drawable.horizontal_red_line, null)
-//                    val verticalRedLineView = inflater.inflate(R.drawable.vertical_red_line, null)
-//                    var windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
-//                    val horizontalRedLineParams = WindowManager.LayoutParams(
-//                        WindowManager.LayoutParams.MATCH_PARENT,
-//                        WindowManager.LayoutParams.WRAP_CONTENT,
-//                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-//                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-//                        PixelFormat.TRANSLUCENT
-//                    ).apply {
-//                        gravity = Gravity.TOP
-//                        this.y = y.toInt() - 2 // Ajustement pour bien centrer la ligne
-//                    }
-//
-//                    val verticalRedLineParams = WindowManager.LayoutParams(
-//                        WindowManager.LayoutParams.MATCH_PARENT,
-//                        WindowManager.LayoutParams.WRAP_CONTENT,
-//                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-//                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-//                        PixelFormat.TRANSLUCENT
-//                    ).apply {
-//                        gravity = Gravity.START
-//                        this.x = x.toInt() - 2 // Ajustement pour bien centrer la ligne
-//                    }
-
                     windowManager.addView(horizontalRedLineView, horizontalRedLineParams)
                     windowManager.addView(verticalRedLineView, verticalRedLineParams)
 

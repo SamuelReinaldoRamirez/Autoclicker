@@ -24,14 +24,19 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 class OverlayService : Service() {
 
     private lateinit var overlayView: View
     private lateinit var autoclickMenuView: View
     private lateinit var windowManager: WindowManager
-    private lateinit var gestureDetector: GestureDetector
     private lateinit var autoclickMenuParams: WindowManager.LayoutParams
+    var semaphore = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -101,6 +106,8 @@ class OverlayService : Service() {
         }
     }
 
+    var isCreatingRoutine = false
+
     private fun setupButtons(view: View) {
         val xClick = view.findViewById<EditText>(R.id.xClick)
         val yClick = view.findViewById<EditText>(R.id.yClick)
@@ -108,99 +115,191 @@ class OverlayService : Service() {
         val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
         val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
         val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
-        var isCollapsed = false
-
         val createRoutineButton = view.findViewById<Button>(R.id.createRoutine)
-        var isCreatingRoutine = false
         val clickPositions = mutableListOf<Pair<Float, Float>>()
 
         val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val fullScreenTouchableView = inflater.inflate(R.layout.transparent_overlay, null)
 
+        setUpCreateRoutineButton(createRoutineButton, fullScreenTouchableView, xClick, yClick, clickPositions)
+        setUpCollapseButton(collapseButton, contentLayout)
+        setUpStartClickButton(startClickButtonM, xClick, yClick)
+        setUpCloseButton(closeButton, view)
+    }
+
+    private fun setUpCreateRoutineButton(
+        createRoutineButton: Button,
+        fullScreenTouchableView: View,
+        xClick: EditText,
+        yClick: EditText,
+        clickPositions: MutableList<Pair<Float, Float>>
+    ) {
         createRoutineButton.setOnClickListener {
-            isCreatingRoutine = !isCreatingRoutine
             if (isCreatingRoutine) {
-                createRoutineButton.text = "Enregistrer"
-
-                windowManager.removeView(overlayView)
-
-
-                val layoutParams = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                    PixelFormat.TRANSLUCENT
-                )
-
-                //enlever menu
-                windowManager.removeView(autoclickMenuView)
-                // Ajouter la vue flottante
-                windowManager.addView(fullScreenTouchableView, layoutParams)
-                //réajouter le menu au premier plan
-                windowManager.addView(autoclickMenuView, autoclickMenuParams)
-
-                fullScreenTouchableView.setOnTouchListener { _, event ->
-                    Log.d("AAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBB")
-
-                    val x = event.x
-                    val y = event.y
-                    clickPositions.add(Pair(x, y))
-
-                    // Mettre à jour les EditText si tu veux afficher les coordonnées
-                    xClick.setText(x.toString())
-                    yClick.setText(y.toString())
-
-
-                    val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
-                    layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                    windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
-
-
-                    // Attendre 50ms avant de rendre la vue non touchable
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        handleAutoclick(xClick, yClick)
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
-                            windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
-                        }, 250)
-                    }, 50)
-
-                    false // Laisse l'événement continuer son chemin
-                }
-
+                stopRoutineCreation(createRoutineButton, fullScreenTouchableView)
             } else {
-                createRoutineButton.text = "Créer routine"
-                windowManager.removeView(fullScreenTouchableView)
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                            or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                    PixelFormat.TRANSLUCENT
-                )
-                windowManager.addView(overlayView, params)
-                // Ajoutez la logique pour "créer" ici, si nécessaire
+                startRoutineCreation(createRoutineButton, fullScreenTouchableView, xClick, yClick, clickPositions)
             }
         }
+    }
 
+    private fun startRoutineCreation(
+        createRoutineButton: Button,
+        fullScreenTouchableView: View,
+        xClick: EditText,
+        yClick: EditText,
+        clickPositions: MutableList<Pair<Float, Float>>
+    ) {
+        isCreatingRoutine = true
+        createRoutineButton.text = "Enregistrer"
+        windowManager.removeView(overlayView)
+
+        val layoutParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+
+        windowManager.removeView(autoclickMenuView)
+        windowManager.addView(fullScreenTouchableView, layoutParams)
+        windowManager.addView(autoclickMenuView, autoclickMenuParams)
+
+        setUpFullScreenTouchListener(fullScreenTouchableView, xClick, yClick, clickPositions)
+    }
+
+    private fun stopRoutineCreation(createRoutineButton: Button, fullScreenTouchableView: View) {
+        isCreatingRoutine = false
+        createRoutineButton.text = "Créer routine"
+        windowManager.removeView(fullScreenTouchableView)
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+        windowManager.addView(overlayView, params)
+    }
+
+    private fun setUpFullScreenTouchListener(
+        fullScreenTouchableView: View,
+        xClick: EditText,
+        yClick: EditText,
+        clickPositions: MutableList<Pair<Float, Float>>
+    ) {
+        fullScreenTouchableView.setOnTouchListener { _, event ->
+            Log.d("0SEMAPHORE setUpFullScreenTouchListener", semaphore.toString())
+            if(semaphore == 0){
+                Log.d("SEMAPHORE setUpFullScreenTouchListener", semaphore.toString())
+                semaphore += 1
+                val screenLocation = IntArray(2)
+                fullScreenTouchableView.getLocationOnScreen(screenLocation)
+
+                // Les coordonnées du touché
+                val x = event.x + screenLocation[0]
+                val y = event.y + screenLocation[1]
+                clickPositions.add(Pair(x, y))
+
+                xClick.setText(x.toString())
+                yClick.setText(y.toString())
+
+                val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
+                layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+
+                // ✅ Attendre que la vue soit bien mise à jour
+                CoroutineScope(Dispatchers.Main).launch {
+                    suspendUntilApplied(fullScreenTouchableView, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+                }
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    handleAutoclick(xClick, yClick, screenLocation[1].toFloat())
+                    Log.d("THREAD", "handleAutoclick executed on thread: ${Thread.currentThread().name}")
+
+                    layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                    windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+
+                    CoroutineScope(Dispatchers.Main).launch {
+                        suspendUntilAppliedInverse(fullScreenTouchableView, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()) // Attends que la vue devienne interactive
+                    }
+
+                    Log.d("THREAD", "View set back to TOUCHABLE on thread: ${Thread.currentThread().name}")
+                    semaphore -= 1
+                    Log.d("2SEMAPHORE setUpFullScreenTouchListener", semaphore.toString())
+                }, 200)
+
+            }
+            false
+        }
+    }
+
+
+    // 🛠 Fonction suspendue qui attend que la vue ait bien appliqué les flags
+    private suspend fun suspendUntilApplied(view: View, expectedFlags: Int) {
+        suspendCancellableCoroutine { continuation ->
+            val handler = Handler(Looper.getMainLooper())
+
+            val checkFlags = object : Runnable {
+                override fun run() {
+                    val layoutParams = view.layoutParams as WindowManager.LayoutParams
+                    if ((layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) == expectedFlags) {
+                        continuation.resume(Unit)
+                    } else {
+                        handler.postDelayed(this, 10) // Vérifie toutes les 10ms
+                    }
+                }
+            }
+
+            handler.post(checkFlags)
+        }
+    }
+
+    private suspend fun suspendUntilAppliedInverse(view: View, expectedFlags: Int) {
+        suspendCancellableCoroutine { continuation ->
+            val handler = Handler(Looper.getMainLooper())
+
+            val checkFlags = object : Runnable {
+                override fun run() {
+                    val layoutParams = view.layoutParams as WindowManager.LayoutParams
+                    if ((layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()) == expectedFlags) {
+                        continuation.resume(Unit)
+                    } else {
+                        handler.postDelayed(this, 10) // Vérifie toutes les 10ms
+                    }
+                }
+            }
+
+            handler.post(checkFlags)
+        }
+    }
+
+
+
+
+    private fun setUpCollapseButton(collapseButton: ImageButton, contentLayout: LinearLayout) {
+        var isCollapsed = false
         collapseButton.setOnClickListener {
             if (isCollapsed) {
-                // Ré-affiche le contenu
                 contentLayout.visibility = View.VISIBLE
-                collapseButton.setImageResource(android.R.drawable.ic_media_play) // Icône "Play"
+                collapseButton.setImageResource(android.R.drawable.ic_media_play)
             } else {
-                // Cache le contenu
                 contentLayout.visibility = View.GONE
-                collapseButton.setImageResource(android.R.drawable.ic_media_pause) // Icône "Pause"
+                collapseButton.setImageResource(android.R.drawable.ic_media_pause)
             }
             isCollapsed = !isCollapsed
         }
+    }
 
+    private fun setUpStartClickButton(startClickButtonM: Button, xClick: EditText, yClick: EditText) {
         startClickButtonM.setOnClickListener {
-            handleAutoclick(xClick, yClick)
+            handleAutoclick(xClick, yClick, 0f)
         }
+    }
+
+    private fun setUpCloseButton(closeButton: ImageButton, view: View) {
         closeButton.setOnClickListener {
             stopSelf()
             windowManager.removeView(overlayView)
@@ -208,23 +307,32 @@ class OverlayService : Service() {
         }
     }
 
-    var isAutoclickInProgress = false
 
-    private fun handleAutoclick(xClick: EditText, yClick: EditText) {
-        val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
-        val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
+    private fun handleAutoclick(xClick: EditText, yClick: EditText, ydecalage: Float) {
+        Log.d("SEMAPHORE handleAutoclick", semaphore.toString())
 
-        if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
-            val autoclickService = AutoclickService.instance
-            autoclickService?.performClick(xClickInt, yClickInt)
-            Log.d(null, "CLIQUE!!!!!!")
-            // Reset flag après avoir effectué le clic
-            isAutoclickInProgress = false
-        } else {
-            Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
-            val intent = Intent(this, AccessibilityPermissionActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
+        if(semaphore == 0 || semaphore == 1) {
+            semaphore += 1
+            Log.d("2SEMAPHORE handleAutoclick", semaphore.toString())
+
+            val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
+            val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
+
+            if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
+                val autoclickService = AutoclickService.instance
+                autoclickService?.performClick(xClickInt, yClickInt, ydecalage)
+                Log.d(null, "CLIQUE!!!!!!")
+                // Reset flag après avoir effectué le clic
+            } else {
+                Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
+                val intent = Intent(this, AccessibilityPermissionActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            }
+            Log.d("3SEMAPHORE handleAutoclick", semaphore.toString())
+            semaphore -= 1
+            Log.d("4SEMAPHORE handleAutoclick", semaphore.toString())
+
         }
     }
 
@@ -288,3 +396,111 @@ class OverlayService : Service() {
     }
 
 }
+
+
+//    private fun setupButtons(view: View) {
+//        val xClick = view.findViewById<EditText>(R.id.xClick)
+//        val yClick = view.findViewById<EditText>(R.id.yClick)
+//        val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
+//        val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
+//        val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
+//        val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
+//        var isCollapsed = false
+//
+//        val createRoutineButton = view.findViewById<Button>(R.id.createRoutine)
+//        var isCreatingRoutine = false
+//        val clickPositions = mutableListOf<Pair<Float, Float>>()
+//
+//        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+//        val fullScreenTouchableView = inflater.inflate(R.layout.transparent_overlay, null)
+//
+//        createRoutineButton.setOnClickListener {
+//            isCreatingRoutine = !isCreatingRoutine
+//            if (isCreatingRoutine) {
+//                createRoutineButton.text = "Enregistrer"
+//
+//                windowManager.removeView(overlayView)
+//
+//
+//                val layoutParams = WindowManager.LayoutParams(
+//                    WindowManager.LayoutParams.MATCH_PARENT,
+//                    WindowManager.LayoutParams.MATCH_PARENT,
+//                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+//                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+//                    PixelFormat.TRANSLUCENT
+//                )
+//
+//                //enlever menu
+//                windowManager.removeView(autoclickMenuView)
+//                // Ajouter la vue flottante
+//                windowManager.addView(fullScreenTouchableView, layoutParams)
+//                //réajouter le menu au premier plan
+//                windowManager.addView(autoclickMenuView, autoclickMenuParams)
+//
+//                fullScreenTouchableView.setOnTouchListener { _, event ->
+//                    Log.d("AAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBB")
+//
+//                    val x = event.x
+//                    val y = event.y
+//                    clickPositions.add(Pair(x, y))
+//
+//                    // Mettre à jour les EditText si tu veux afficher les coordonnées
+//                    xClick.setText(x.toString())
+//                    yClick.setText(y.toString())
+//
+//
+//                    val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
+//                    layoutParams.flags = layoutParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+//                    windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+//
+//
+//                    // Attendre 50ms avant de rendre la vue non touchable
+//                    Handler(Looper.getMainLooper()).postDelayed({
+//                        handleAutoclick(xClick, yClick)
+//                        Handler(Looper.getMainLooper()).postDelayed({
+//                            layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+//                            windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
+//                        }, 250)
+//                    }, 50)
+//
+//                    false // Laisse l'événement continuer son chemin
+//                }
+//
+//            } else {
+//                createRoutineButton.text = "Créer routine"
+//                windowManager.removeView(fullScreenTouchableView)
+//                val params = WindowManager.LayoutParams(
+//                    WindowManager.LayoutParams.MATCH_PARENT,
+//                    WindowManager.LayoutParams.MATCH_PARENT,
+//                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+//                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+//                            or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+//                    PixelFormat.TRANSLUCENT
+//                )
+//                windowManager.addView(overlayView, params)
+//                // Ajoutez la logique pour "créer" ici, si nécessaire
+//            }
+//        }
+//
+//        collapseButton.setOnClickListener {
+//            if (isCollapsed) {
+//                // Ré-affiche le contenu
+//                contentLayout.visibility = View.VISIBLE
+//                collapseButton.setImageResource(android.R.drawable.ic_media_play) // Icône "Play"
+//            } else {
+//                // Cache le contenu
+//                contentLayout.visibility = View.GONE
+//                collapseButton.setImageResource(android.R.drawable.ic_media_pause) // Icône "Pause"
+//            }
+//            isCollapsed = !isCollapsed
+//        }
+//
+//        startClickButtonM.setOnClickListener {
+//            handleAutoclick(xClick, yClick)
+//        }
+//        closeButton.setOnClickListener {
+//            stopSelf()
+//            windowManager.removeView(overlayView)
+//            windowManager.removeView(view)
+//        }
+//    }
