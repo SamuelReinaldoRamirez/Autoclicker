@@ -13,11 +13,4 @@
         android:layout_gravity="center"
         android:textColor="@android:color/white" />
 
-
-    <!-- Conteneur pour l'indicateur visuel -->
-    <FrameLayout
-        android:id="@+id/indicatorContainer"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
 </FrameLayout>

@@ -103,7 +103,6 @@ class OverlayService : Service() {
         val xClick = view.findViewById<EditText>(R.id.xClick)
         val yClick = view.findViewById<EditText>(R.id.yClick)
         val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
-        val indicatorContainer = overlayView.findViewById<FrameLayout>(R.id.indicatorContainer)
         val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
         val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
         val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
@@ -165,7 +164,7 @@ class OverlayService : Service() {
 
                     // Attendre 50ms avant de rendre la vue non touchable
                     Handler(Looper.getMainLooper()).postDelayed({
-                        handleAutoclick(xClick, yClick, indicatorContainer)
+                        handleAutoclick(xClick, yClick)
 //                        val layoutParams = fullScreenTouchableView.layoutParams as WindowManager.LayoutParams
                         layoutParams.flags = layoutParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
                         windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
@@ -226,7 +225,7 @@ class OverlayService : Service() {
         }
 
         startClickButtonM.setOnClickListener {
-            handleAutoclick(xClick, yClick, indicatorContainer)
+            handleAutoclick(xClick, yClick)
         }
         closeButton.setOnClickListener {
             stopSelf()
@@ -237,15 +236,12 @@ class OverlayService : Service() {
 
     var isAutoclickInProgress = false
 
-    private fun handleAutoclick(xClick: EditText, yClick: EditText, indicatorContainer: FrameLayout) {
+    private fun handleAutoclick(xClick: EditText, yClick: EditText) {
         val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
         val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
 
         if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
             val autoclickService = AutoclickService.instance
-//            showClickIndicator(indicatorContainer, xClickInt, yClickInt)
-//            showClickIndicator(indicatorContainer, xClickInt, 0f)
-//            showClickIndicator(indicatorContainer, 0f, yClickInt)
             autoclickService?.performClick(xClickInt, yClickInt)
             Log.d(null, "CLIQUE!!!!!!")
             // Reset flag après avoir effectué le clic
