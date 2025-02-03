@@ -190,10 +190,38 @@ class OverlayService : Service() {
 
             setOnClickListener {
                 val storedPoints = buttonPointsMap[buttonNumber]
-                storedPoints?.let { points ->
-                    Log.d("stopRoutineCreation", "Liste des points: $points")
-                    Toast.makeText(context, "Points: $points", Toast.LENGTH_SHORT).show()
+
+                val screenLocation = IntArray(2)
+                // Vérifier laquelle des vues existe et récupérer sa position à l'écran
+                if (fullScreenTouchableView.isShown) {
+                    fullScreenTouchableView.getLocationOnScreen(screenLocation)
+                    Log.d("QUELLE VUE", "fullScreenTouchableView")
+                } else if (overlayView.isShown) {
+                    overlayView.getLocationOnScreen(screenLocation)
+                    Log.d("QUELLE VUE", "overlayView")
+                }else{
+                    Log.e("ERREUR", "ni fullScreenTouchableView, ni overlayView n'existent")
                 }
+
+                storedPoints?.let { points ->
+                    // Lancer handleAutoclick avec un délai de 500 ms entre chaque appel
+                    val handler = Handler()
+                    for (i in points.indices) {
+                        val point = points[i]
+                        // Utilisation de postDelayed pour appeler handleAutoclick avec un délai
+                        handler.postDelayed({
+                            // Appeler handleAutoclick pour chaque point
+                            val xClick = point.first
+                            val yClick = point.second
+                            handleAutoclickFLOAT(xClick, yClick, screenLocation[1].toFloat()) // Assurez-vous que screenLocation[1] est valide
+                        }, i * 3000L) // Délai de 3s entre chaque appel
+                    }
+                }
+
+//                storedPoints?.let { points ->
+//                    Log.d("stopRoutineCreation", "Liste des points: $points")
+//                    Toast.makeText(context, "Points: $points", Toast.LENGTH_SHORT).show()
+//                }
             }
 
         }
@@ -348,6 +376,35 @@ class OverlayService : Service() {
 
             val xClickInt = xClick.text.toString().toFloatOrNull() ?: 0f
             val yClickInt = yClick.text.toString().toFloatOrNull() ?: 0f
+
+            if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
+                val autoclickService = AutoclickService.instance
+                autoclickService?.performClick(xClickInt, yClickInt, ydecalage)
+                Log.d(null, "CLIQUE!!!!!!")
+                // Reset flag après avoir effectué le clic
+            } else {
+                Log.e("AccessibilityService", "Le service d'accessibilité n'est pas activé.")
+                val intent = Intent(this, AccessibilityPermissionActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            }
+            Log.d("3SEMAPHORE handleAutoclick", semaphore.toString())
+            semaphore -= 1
+            Log.d("4SEMAPHORE handleAutoclick", semaphore.toString())
+
+        }
+    }
+
+
+    private fun handleAutoclickFLOAT(xClick: Float, yClick: Float, ydecalage: Float) {
+        Log.d("SEMAPHORE handleAutoclick", semaphore.toString())
+
+        if(semaphore == 0 || semaphore == 1) {
+            semaphore += 1
+            Log.d("2SEMAPHORE handleAutoclick", semaphore.toString())
+
+            val xClickInt = xClick
+            val yClickInt = yClick
 
             if (isAccessibilityServiceEnabled(this, AutoclickService::class.java)) {
                 val autoclickService = AutoclickService.instance
