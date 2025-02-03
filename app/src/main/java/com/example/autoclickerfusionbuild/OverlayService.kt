@@ -28,8 +28,10 @@ import android.widget.TextView
 class OverlayService : Service() {
 
     private lateinit var overlayView: View
+    private lateinit var autoclickMenuView: View
     private lateinit var windowManager: WindowManager
     private lateinit var gestureDetector: GestureDetector
+    private lateinit var autoclickMenuParams: WindowManager.LayoutParams
 
     override fun onCreate() {
         super.onCreate()
@@ -55,8 +57,8 @@ class OverlayService : Service() {
 
     private fun setupAutoclickMenu() {
         val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-        val autoclickMenuView = inflater.inflate(R.layout.autoclick_menu, null)
-        val autoclickMenuParams = WindowManager.LayoutParams(
+        autoclickMenuView = inflater.inflate(R.layout.autoclick_menu, null)
+        autoclickMenuParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -144,9 +146,12 @@ class OverlayService : Service() {
                     PixelFormat.TRANSLUCENT
                 )
 
+                //enlever menu
+                windowManager.removeView(autoclickMenuView)
                 // Ajouter la vue flottante
                 windowManager.addView(fullScreenTouchableView, layoutParams)
-
+                //réajouter le menu au premier plan
+                windowManager.addView(autoclickMenuView, autoclickMenuParams)
 
                 fullScreenTouchableView.setOnTouchListener { _, event ->
                     Log.d("AAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBB")
@@ -158,9 +163,6 @@ class OverlayService : Service() {
                         windowManager.updateViewLayout(fullScreenTouchableView, layoutParams)
 //                    }, 50)
 
-                    // Dispatcher l'événement pour qu'il passe à la vue en dessous
-//                    view.dispatchTouchEvent(event)
-//                    handleAutoclick(xClick, yClick, indicatorContainer)
 
                     // Attendre 50ms avant de rendre la vue non touchable
                     Handler(Looper.getMainLooper()).postDelayed({
