@@ -5,12 +5,12 @@
     android:background="#50FFFF00"> <!-- Jaune semi-transparent -->
 <!--    android:background="@android:color/transparent">-->
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello Worldos"
-        android:textSize="24sp"
-        android:layout_gravity="center"
-        android:textColor="@android:color/white" />
+<!--    <TextView-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Hello Worldos"-->
+<!--        android:textSize="24sp"-->
+<!--        android:layout_gravity="center"-->
+<!--        android:textColor="@android:color/white" />-->
 
 </FrameLayout>

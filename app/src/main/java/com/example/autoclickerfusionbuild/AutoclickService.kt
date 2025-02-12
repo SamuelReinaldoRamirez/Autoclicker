@@ -17,6 +17,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.widget.FrameLayout
 
 class AutoclickService : AccessibilityService() {
 
@@ -41,6 +42,75 @@ class AutoclickService : AccessibilityService() {
     }
 
 
+//    @SuppressLint("ResourceType")
+//    fun performClick(x: Float, y: Float, ydecalage: Float) {
+//        val path = Path().apply {
+//            moveTo(x, y)
+//        }
+//        Log.d("CLICK", "moved to : ($x, $y)")
+//
+//        val gestureBuilder = GestureDescription.Builder()
+//        gestureBuilder.addStroke(
+//            GestureDescription.StrokeDescription(
+//                path,
+//                0,    // Délai avant le clic (en ms)
+//                200   // Durée du clic (en ms)
+//            )
+//        )
+//        Log.d("CLICK", "Tentative de dispatchGesture à la position : ($x, $y)")
+//
+//        var windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
+//        val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+//
+//        val horizontalRedLineView = inflater.inflate(R.drawable.horizontal_red_line, null)
+//        val verticalRedLineView = inflater.inflate(R.drawable.vertical_red_line, null)
+//
+//        val horizontalRedLineParams = WindowManager.LayoutParams(
+//            WindowManager.LayoutParams.MATCH_PARENT,
+//            WindowManager.LayoutParams.WRAP_CONTENT,
+//            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+//            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+//            PixelFormat.TRANSLUCENT
+//        ).apply {
+//            gravity = Gravity.TOP
+//            this.y = y.toInt() - 2 - ydecalage.toInt()// Ajustement pour bien centrer la ligne horizontale
+//        }
+//
+//        val verticalRedLineParams = WindowManager.LayoutParams(
+//            WindowManager.LayoutParams.WRAP_CONTENT, // Largeur ajustée
+//            WindowManager.LayoutParams.MATCH_PARENT, // Hauteur pleine
+//            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+//            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+//            PixelFormat.TRANSLUCENT
+//        ).apply {
+//            gravity = Gravity.START // Positionnement horizontal
+//            this.x = x.toInt() - 2 // Ajustement pour bien centrer la ligne verticale
+//        }
+//
+//        dispatchGesture(
+//            gestureBuilder.build(),
+//            object : GestureResultCallback() {
+//                override fun onCompleted(gestureDescription: GestureDescription?) {
+//                    Log.d("CLICK", "Geste simulé avec succès.")
+//                    windowManager.addView(horizontalRedLineView, horizontalRedLineParams)
+//                    windowManager.addView(verticalRedLineView, verticalRedLineParams)
+//
+//                    // Supprime la ligne après 1 seconde
+//                    Handler(Looper.getMainLooper()).postDelayed({
+//                        windowManager.removeView(horizontalRedLineView)
+//                        windowManager.removeView(verticalRedLineView)
+//                    }, 1000)
+//                }
+//
+//                override fun onCancelled(gestureDescription: GestureDescription?) {
+//                    Log.e("CLICK", "Le geste a été annulé.")
+//                }
+//            },
+//            null
+//        )
+//    }
+
+
     @SuppressLint("ResourceType")
     fun performClick(x: Float, y: Float, ydecalage: Float) {
         val path = Path().apply {
@@ -58,32 +128,23 @@ class AutoclickService : AccessibilityService() {
         )
         Log.d("CLICK", "Tentative de dispatchGesture à la position : ($x, $y)")
 
-        var windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
+        val windowManager = getSystemService(Service.WINDOW_SERVICE) as WindowManager
         val inflater = getSystemService(Service.LAYOUT_INFLATER_SERVICE) as LayoutInflater
 
-        val horizontalRedLineView = inflater.inflate(R.drawable.horizontal_red_line, null)
-        val verticalRedLineView = inflater.inflate(R.drawable.vertical_red_line, null)
+        val redCrossView = inflater.inflate(R.drawable.red_cross, null)
 
-        val horizontalRedLineParams = WindowManager.LayoutParams(
+        // Récupération des vues de la croix
+        val horizontalLine = redCrossView.findViewById<View>(R.id.horizontal_line)
+        val verticalLine = redCrossView.findViewById<View>(R.id.vertical_line)
+
+        val redCrossParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP
-            this.y = y.toInt() - 2 - ydecalage.toInt()// Ajustement pour bien centrer la ligne horizontale
-        }
-
-        val verticalRedLineParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT, // Largeur ajustée
-            WindowManager.LayoutParams.MATCH_PARENT, // Hauteur pleine
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.START // Positionnement horizontal
-            this.x = x.toInt() - 2 // Ajustement pour bien centrer la ligne verticale
+            gravity = Gravity.TOP or Gravity.START
         }
 
         dispatchGesture(
@@ -91,13 +152,23 @@ class AutoclickService : AccessibilityService() {
             object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
                     Log.d("CLICK", "Geste simulé avec succès.")
-                    windowManager.addView(horizontalRedLineView, horizontalRedLineParams)
-                    windowManager.addView(verticalRedLineView, verticalRedLineParams)
 
-                    // Supprime la ligne après 1 seconde
+                    // Affichage des lignes à la bonne position
+                    val layoutParamsH = horizontalLine.layoutParams as FrameLayout.LayoutParams
+                    layoutParamsH.topMargin = y.toInt() - 1 - ydecalage.toInt() // Centrage ligne horizontale
+                    horizontalLine.layoutParams = layoutParamsH
+                    horizontalLine.visibility = View.VISIBLE
+
+                    val layoutParamsV = verticalLine.layoutParams as FrameLayout.LayoutParams
+                    layoutParamsV.leftMargin = x.toInt() - 1 // Centrage ligne verticale
+                    verticalLine.layoutParams = layoutParamsV
+                    verticalLine.visibility = View.VISIBLE
+
+                    windowManager.addView(redCrossView, redCrossParams)
+
+                    // Supprime la croix après 1 seconde
                     Handler(Looper.getMainLooper()).postDelayed({
-                        windowManager.removeView(horizontalRedLineView)
-                        windowManager.removeView(verticalRedLineView)
+                        windowManager.removeView(redCrossView)
                     }, 1000)
                 }
 
@@ -108,6 +179,7 @@ class AutoclickService : AccessibilityService() {
             null
         )
     }
+
 
 
     private fun showClickIndicator(x: Float, y: Float) {
