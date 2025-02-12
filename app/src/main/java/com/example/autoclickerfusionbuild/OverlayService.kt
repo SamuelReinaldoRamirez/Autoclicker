@@ -2,13 +2,17 @@ package com.example.autoclickerfusionbuild
 
 import android.accessibilityservice.AccessibilityService
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.net.Uri
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.view.GestureDetector
@@ -22,9 +26,12 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,10 +48,72 @@ class OverlayService : Service() {
     // Utilisation d'un Map pour stocker les points associés à chaque ID de bouton
     private val buttonPointsMap = mutableMapOf<Int, MutableList<Pair<Float, Float>>>()
 
+    private lateinit var imageView: ImageView
+
+    private val imageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val imageUriString = intent?.getStringExtra(ImagePickerActivity.EXTRA_IMAGE_URI)
+            val imageUri = imageUriString?.let { Uri.parse(it) }
+            imageUri?.let {
+                imageView.setImageURI(it) // Affiche l'image sélectionnée
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         setupOverlayView()
         setupAutoclickMenu()
+
+        // Enregistre le BroadcastReceiver
+        val filter = IntentFilter(ImagePickerActivity.ACTION_IMAGE_SELECTED)
+        registerReceiver(imageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    fun hideOverlay() {
+        overlayView.visibility = View.GONE
+    }
+
+    fun showOverlay() {
+        overlayView.visibility = View.VISIBLE
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            "SHOW_OVERLAY" -> showOverlay()
+        }
+        return START_STICKY
+    }
+
+    private fun setupButtons(view: View) {
+        val xClick = view.findViewById<EditText>(R.id.xClick)
+        val yClick = view.findViewById<EditText>(R.id.yClick)
+        val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
+        val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
+        val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
+        val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
+        val createRoutineButton = view.findViewById<Button>(R.id.createRoutine)
+        val clickPositions = mutableListOf<Pair<Float, Float>>()
+        val photoAnalyserButton = view.findViewById<ImageButton>(R.id.photoButton)
+
+        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        val fullScreenTouchableView = inflater.inflate(R.layout.transparent_overlay, null)
+
+        setUpCreateRoutineButton(createRoutineButton, fullScreenTouchableView, xClick, yClick, clickPositions)
+        setUpCollapseButton(collapseButton, contentLayout)
+        setUpStartClickButton(startClickButtonM, xClick, yClick)
+        setUpCloseButton(closeButton, view)
+        setUpPhotoAnalyserButton(photoAnalyserButton)
+    }
+
+    private fun setUpPhotoAnalyserButton(photoAnalyserButton: ImageButton) {
+
+        photoAnalyserButton.setOnClickListener {
+            hideOverlay()
+            val intent = Intent(this, ImagePickerActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
     }
 
     private fun setupOverlayView() {
@@ -111,24 +180,7 @@ class OverlayService : Service() {
 
     var isCreatingRoutine = false
 
-    private fun setupButtons(view: View) {
-        val xClick = view.findViewById<EditText>(R.id.xClick)
-        val yClick = view.findViewById<EditText>(R.id.yClick)
-        val startClickButtonM = view.findViewById<Button>(R.id.startClickButton)
-        val closeButton = view.findViewById<ImageButton>(R.id.closeButton)
-        val collapseButton = view.findViewById<ImageButton>(R.id.collapseButton)
-        val contentLayout = view.findViewById<LinearLayout>(R.id.contentLayout)
-        val createRoutineButton = view.findViewById<Button>(R.id.createRoutine)
-        val clickPositions = mutableListOf<Pair<Float, Float>>()
 
-        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-        val fullScreenTouchableView = inflater.inflate(R.layout.transparent_overlay, null)
-
-        setUpCreateRoutineButton(createRoutineButton, fullScreenTouchableView, xClick, yClick, clickPositions)
-        setUpCollapseButton(collapseButton, contentLayout)
-        setUpStartClickButton(startClickButtonM, xClick, yClick)
-        setUpCloseButton(closeButton, view)
-    }
 
     private fun setUpCreateRoutineButton(
         createRoutineButton: Button,
@@ -477,6 +529,7 @@ class OverlayService : Service() {
         if (::overlayView.isInitialized) {
             windowManager.removeView(overlayView)
         }
+        unregisterReceiver(imageReceiver) // Désenregistre le receiver
     }
 
     override fun onBind(intent: Intent?): IBinder? {

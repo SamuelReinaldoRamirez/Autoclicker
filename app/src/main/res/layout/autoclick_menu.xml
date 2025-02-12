@@ -11,7 +11,7 @@
     <GridLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:columnCount="2"
+        android:columnCount="3"
         android:rowCount="1">
 
         <!-- Flèche blanche (Réduire) -->
@@ -25,6 +25,17 @@
             android:layout_column="0"
             android:layout_gravity="start"/>
 
+        <!-- Icône Photo (Ajouté) -->
+        <ImageButton
+            android:id="@+id/photoButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_camera"
+            android:background="@android:color/transparent"
+            android:contentDescription="Prendre une photo"
+            android:layout_column="1"
+            android:layout_gravity="center"/>
+
 
         <!-- Croix rouge (Fermeture) -->
         <ImageButton
@@ -35,7 +46,7 @@
             android:layout_marginTop="4dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:layout_gravity="end"
-            android:layout_column="1"
+            android:layout_column="2"
             android:src="@android:drawable/ic_delete"
             app:tint="@android:color/holo_red_dark" />
     </GridLayout>
