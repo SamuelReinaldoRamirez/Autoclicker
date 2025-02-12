@@ -1,10 +1,15 @@
 package com.example.autoclickerfusionbuild
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 
@@ -30,6 +35,9 @@ class ImagePickerActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == Activity.RESULT_OK) {
             val selectedImageUri: Uri? = data?.data
             selectedImageUri?.let {
+                val fileName = getFileName(it) // Récupère le nom du fichier
+                copyToClipboard(fileName) // Copie dans le presse-papiers
+
                 sendBroadcast(Intent(ACTION_IMAGE_SELECTED).apply {
                     putExtra(EXTRA_IMAGE_URI, it.toString())
                 })
@@ -43,6 +51,27 @@ class ImagePickerActivity : AppCompatActivity() {
 
         finish() // Ferme l'activité après sélection
     }
+
+    private fun getFileName(uri: Uri): String {
+        var fileName = "image_selected.jpg" // Nom par défaut si rien n'est trouvé
+        val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) {
+                    fileName = it.getString(index)
+                }
+            }
+        }
+        return fileName
+    }
+
+    private fun copyToClipboard(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("File Name", text)
+        clipboard.setPrimaryClip(clip)
+    }
+
 
     companion object {
         const val REQUEST_CODE_PICK_IMAGE = 1001
