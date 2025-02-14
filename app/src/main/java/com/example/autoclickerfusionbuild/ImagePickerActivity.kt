@@ -6,22 +6,39 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.database.Cursor
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.WindowManager
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import org.opencv.android.OpenCVLoader
+import org.opencv.android.Utils
+import org.opencv.core.CvType
+import org.opencv.core.Mat
+import org.opencv.imgproc.Imgproc
+import java.io.File
+import java.io.FileOutputStream
 
 class ImagePickerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (!OpenCVLoader.initDebug()) {
+            Log.e("OpenCV", "Échec de l'initialisation d'OpenCV")
+        } else {
+            Log.d("OpenCV", "OpenCV initialisé avec succès")
+        }
 
         window.setFlags(
             WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
@@ -40,9 +57,13 @@ class ImagePickerActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == Activity.RESULT_OK) {
             val selectedImageUri: Uri? = data?.data
             selectedImageUri?.let {
-                analyzeImageWithMLKit(it, this)
-//                val fileName = getFileName(it) // Récupère le nom du fichier
-//                copyToClipboard(fileName) // Copie dans le presse-papiers
+                val enhancedBitmap = enhanceImage(it, this)
+                val enhancedImageUri = saveBitmapToCache(enhancedBitmap, this) // On enregistre l’image améliorée
+                if (enhancedImageUri != null) {
+                    analyzeImageWithMLKit(enhancedImageUri, this)
+                } else {
+                    Log.e("ImageProcessing", "Échec de la sauvegarde de l'image améliorée")
+                }
 
                 sendBroadcast(Intent(ACTION_IMAGE_SELECTED).apply {
                     putExtra(EXTRA_IMAGE_URI, it.toString())
@@ -58,43 +79,130 @@ class ImagePickerActivity : AppCompatActivity() {
         finish() // Ferme l'activité après sélection
     }
 
-    //pas testée
-//    private fun analyzeImageWithMLKit(imageUri: Uri, context: Context) {
-//        val inputImage = InputImage.fromFilePath(context, imageUri)
-//        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+//    private fun saveBitmapToCache(bitmap: Bitmap, context: Context): Uri {
+//        val cachePath = File(context.cacheDir, "images")
+//        cachePath.mkdirs() // Crée le dossier si besoin
 //
-//        recognizer.process(inputImage)
-//            .addOnSuccessListener { visionText ->
-//                val extractedText = visionText.text
-//                Log.d("OCR_RESULT", "Texte brut extrait :\n$extractedText")
+//        val file = File(cachePath, "enhanced_image.png")
+//        FileOutputStream(file).use { out ->
+//            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) // Compression sans perte
+//        }
 //
-//                val cardNames = mutableListOf<String>()
+//        return FileProvider.getUriForFile(
+//            context,
+//            "${context.packageName}.provider", // Assure-toi d’avoir un FileProvider configuré dans ton Manifest !
+//            file
+//        )
+//    }
+
+
+    private fun saveBitmapToCache(bitmap: Bitmap, context: Context): Uri? {
+        val cachePath = File(context.cacheDir, "images")
+        if (!cachePath.exists()) {
+            val created = cachePath.mkdirs()
+            Log.d("ImageProcessing", "Dossier cache créé : $created")
+        }
+
+        val file = File(cachePath, "enhanced_image.png")
+
+        return try {
+            FileOutputStream(file).use { out ->
+                val success = bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                Log.d("ImageProcessing", "Compression réussie : $success")
+            }
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            Log.d("ImageProcessing", "Uri de l'image enregistrée : $uri")
+            uri
+        } catch (e: Exception) {
+            Log.e("ImageProcessing", "Erreur lors de l'enregistrement de l'image : ${e.message}")
+            null
+        }
+    }
+
+
+    fun enhanceImage(imageUri: Uri, context: Context): Bitmap {
+        Log.d("ImageProcessing", "Début du traitement de l'image")
+
+        // Charger l'image en Bitmap
+        val inputBitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, imageUri)
+        Log.d("ImageProcessing", "Image chargée depuis Uri")
+
+        // Convertir en Mat (format OpenCV)
+        val src = Mat()
+        Utils.bitmapToMat(inputBitmap, src)
+        Log.d("ImageProcessing", "Conversion en Mat réussie")
+
+        // Convertir en niveaux de gris
+        val gray = Mat()
+        Imgproc.cvtColor(src, gray, Imgproc.COLOR_BGR2GRAY)
+        Log.d("ImageProcessing", "Conversion en niveaux de gris réussie")
+
+        // Appliquer un filtre de netteté (Sharpening)
+        val sharpened = Mat()
+        val kernel = Mat(3, 3, CvType.CV_32F)
+        kernel.put(
+            0, 0,  -1.0, -1.0, -1.0,
+            -1.0,  9.0, -1.0,
+            -1.0, -1.0, -1.0
+        )
+        Imgproc.filter2D(gray, sharpened, -1, kernel)
+        Log.d("ImageProcessing", "Filtre de netteté appliqué")
+
+        // Appliquer CLAHE (Contrast Limited Adaptive Histogram Equalization)
+        val clahe = Imgproc.createCLAHE()
+        clahe.clipLimit = 4.0
+        val enhanced = Mat()
+        clahe.apply(sharpened, enhanced)
+        Log.d("ImageProcessing", "CLAHE appliqué")
+
+        // Convertir le Mat OpenCV en Bitmap
+        val outputBitmap = Bitmap.createBitmap(enhanced.cols(), enhanced.rows(), Bitmap.Config.ARGB_8888)
+        Utils.matToBitmap(enhanced, outputBitmap)
+        Log.d("ImageProcessing", "Image traitée et convertie en Bitmap")
+
+        return outputBitmap
+    }
+
+
+
+//    fun enhanceImage(imageUri: Uri, context: Context): Bitmap {
+//        // Charger l'image en Bitmap
+//        val inputBitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, imageUri)
 //
-//                // On parcourt chaque bloc de texte détecté
-//                for (block in visionText.textBlocks) {
-//                    val rect = block.boundingBox // 📍 Récupérer la position du texte
-//                    if (rect != null) {
-//                        Log.d("OCR_BLOCK", "Texte détecté : ${block.text} | Position : $rect")
+//        // Convertir en Mat (format OpenCV)
+//        val src = Mat()
+//        Utils.bitmapToMat(inputBitmap, src)
 //
-//                        // 📌 Filtrer uniquement les textes situés dans le haut de l'image (ex: premier tiers)
-//                        val imageHeight = inputImage.height
-//                        if (rect.top < imageHeight * 0.3) { // Seulement le premier tiers haut
-//                            cardNames.add(block.text)
-//                        }
-//                    }
-//                }
+//        // Convertir en niveaux de gris
+//        val gray = Mat()
+//        Imgproc.cvtColor(src, gray, Imgproc.COLOR_BGR2GRAY)
 //
-//                Log.d("FILTERED_CARDS", "Noms de cartes détectés :\n$cardNames")
+//        // Appliquer un filtre de netteté (Sharpening)
+//        val sharpened = Mat()
+//        val kernel = Mat(3, 3, CvType.CV_32F)
+//        kernel.put(
+//            0, 0,  -1.0, -1.0, -1.0,
+//            -1.0,  9.0, -1.0,
+//            -1.0, -1.0, -1.0
+//        )
+//        Imgproc.filter2D(gray, sharpened, -1, kernel)
 //
-//                if (cardNames.isNotEmpty()) {
-//                    copyToClipboard(context, cardNames.joinToString("\n")) // Copier avec des retours à la ligne
-//                } else {
-//                    Log.w("FILTERED_CARDS", "Aucun nom de carte détecté !")
-//                }
-//            }
-//            .addOnFailureListener { e ->
-//                Log.e("OCR_ERROR", "Erreur lors de la reconnaissance du texte", e)
-//            }
+//        // Appliquer CLAHE (Contrast Limited Adaptive Histogram Equalization)
+//        val clahe = Imgproc.createCLAHE()
+//        clahe.clipLimit = 4.0
+//        val enhanced = Mat()
+//        clahe.apply(sharpened, enhanced)
+//
+//        // Convertir le Mat OpenCV en Bitmap
+//        val outputBitmap = Bitmap.createBitmap(enhanced.cols(), enhanced.rows(), Bitmap.Config.ARGB_8888)
+//        Utils.matToBitmap(enhanced, outputBitmap)
+//
+//        return outputBitmap
 //    }
 
 
@@ -174,13 +282,29 @@ class ImagePickerActivity : AppCompatActivity() {
     }
 
 
-//    private fun filterYuGiOhCardNames(text: String): String {
-//        val knownCards = listOf("Dark Magician", "Blue-Eyes White Dragon", "Red-Eyes Black Dragon") // 📌 Ajoute d'autres noms
-////        return text.lines()
-////            .map { it.trim() }
-////            .filter { line -> knownCards.any { card -> line.contains(card, ignoreCase = true) } }
-////            .joinToString("\n")
-//        return text
+    //marche bien
+//    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+//        super.onActivityResult(requestCode, resultCode, data)
+//
+//        if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == Activity.RESULT_OK) {
+//            val selectedImageUri: Uri? = data?.data
+//            selectedImageUri?.let {
+//                analyzeImageWithMLKit(it, this)
+////                val fileName = getFileName(it) // Récupère le nom du fichier
+////                copyToClipboard(fileName) // Copie dans le presse-papiers
+//
+//                sendBroadcast(Intent(ACTION_IMAGE_SELECTED).apply {
+//                    putExtra(EXTRA_IMAGE_URI, it.toString())
+//                })
+//            }
+//        }
+//
+//        // Réaffiche l'overlay avant de fermer l'activité
+//        val serviceIntent = Intent(this, OverlayService::class.java)
+//        serviceIntent.action = "SHOW_OVERLAY"
+//        startService(serviceIntent)
+//
+//        finish() // Ferme l'activité après sélection
 //    }
 
     private fun copyToClipboard(context: Context, text: String) {
