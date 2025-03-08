@@ -180,7 +180,7 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
             val area = Imgproc.contourArea(contour)
             val aspectRatio = boundingRect.width.toDouble() / boundingRect.height.toDouble()
 //            area > 500.0 && area < 20000.0 && aspectRatio in 0.5..2.0  // Ajuster ces valeurs en fonction des cartes
-            area > 80000.0 && area < 200000.0 && aspectRatio in 0.2..3.5  // Ajuster ces valeurs en fonction des cartes
+            area > 40000.0 && area < 200000.0 && aspectRatio in 0.3..0.8  // Ajuster ces valeurs en fonction des cartes
         }
 
         // Tracer des rectangles orange autour des zones détectées
@@ -192,6 +192,37 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
         // Sauvegarder l'image avec les rectangles tracés
         saveMatDirectly(image, "detected_rectangles_$imageName", context)
     }
+
+//    fun extractTitlesFromCards(context: Context, detectedCards: List<Rect>, originalMat: Mat) {
+//        a integrer
+//        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+//
+//        for ((index, cardRect) in detectedCards.withIndex()) {
+//            // Convertir l'image OpenCV en Bitmap
+//            val cardBitmap = Bitmap.createBitmap(cardRect.width(), cardRect.height(), Bitmap.Config.ARGB_8888)
+//            Utils.matToBitmap(originalMat.submat(cardRect), cardBitmap)
+//
+//            // Découper uniquement le haut de la carte pour récupérer le titre
+//            val titleHeight = (cardRect.height() * 0.2).toInt() // Prend les 20% du haut
+//            val titleRect = Rect(0, 0, cardBitmap.width, titleHeight)
+//            val titleBitmap = Bitmap.createBitmap(cardBitmap, titleRect.left, titleRect.top, titleRect.width(), titleRect.height())
+//
+//            // Créer une image ML Kit
+//            val image = InputImage.fromBitmap(titleBitmap, 0)
+//
+//            // Lancer l'OCR
+//            recognizer.process(image)
+//                .addOnSuccessListener { visionText ->
+//                    val detectedTitle = visionText.text.trim()
+//                    Log.d("OCR", "Titre détecté pour la carte #$index : $detectedTitle")
+//                }
+//                .addOnFailureListener { e ->
+//                    Log.e("OCR", "Erreur de reconnaissance du titre : ${e.message}")
+//                }
+//        }
+//    }
+
+
 
     //threshold caca
 //    private fun detectAndDrawRectanglesOnMat(image: Mat, context: Context, imageName: String) {
