@@ -38,7 +38,8 @@
             android:name=".AccessibilityPermissionActivity"
             android:theme="@style/Theme.AppCompat.Dialog"
             android:exported="false" />
-        <activity android:name=".ImagePickerActivity" android:exported="false" />
+<!--        <activity android:name=".ImagePickerActivity" android:exported="false" />-->
+        <activity android:name=".DifferenceImagePickerActivity" android:exported="false" />
 
 
         <!-- Service pour la fenêtre flottante -->

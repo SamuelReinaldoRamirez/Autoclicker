@@ -52,7 +52,8 @@ class OverlayService : Service() {
 
     private val imageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val imageUriString = intent?.getStringExtra(ImagePickerActivity.EXTRA_IMAGE_URI)
+//            val imageUriString = intent?.getStringExtra(ImagePickerActivity.EXTRA_IMAGE_URI)
+            val imageUriString = intent?.getStringExtra(DifferenceImagePickerActivity.EXTRA_IMAGE_URI)
             val imageUri = imageUriString?.let { Uri.parse(it) }
             imageUri?.let {
                 imageView.setImageURI(it) // Affiche l'image sélectionnée
@@ -66,7 +67,8 @@ class OverlayService : Service() {
         setupAutoclickMenu()
 
         // Enregistre le BroadcastReceiver
-        val filter = IntentFilter(ImagePickerActivity.ACTION_IMAGE_SELECTED)
+//        val filter = IntentFilter(ImagePickerActivity.ACTION_IMAGE_SELECTED)
+        val filter = IntentFilter(DifferenceImagePickerActivity.ACTION_IMAGE_SELECTED)
         registerReceiver(imageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
     }
 
@@ -110,7 +112,8 @@ class OverlayService : Service() {
 
         photoAnalyserButton.setOnClickListener {
             hideOverlay()
-            val intent = Intent(this, ImagePickerActivity::class.java)
+//            val intent = Intent(this, ImagePickerActivity::class.java)
+            val intent = Intent(this, DifferenceImagePickerActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
         }
