@@ -1,6 +1,8 @@
 package com.example.autoclickerfusionbuild
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -9,10 +11,13 @@ import android.provider.MediaStore
 import android.util.Log
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.Core
 import org.opencv.core.CvType
+import org.opencv.core.Rect
 import org.opencv.core.Mat
 import org.opencv.core.MatOfPoint
 import org.opencv.core.Scalar
@@ -20,6 +25,11 @@ import org.opencv.core.Size
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 import java.io.File
+import android.graphics.Bitmap
+import android.widget.Toast
+import com.google.mlkit.vision.common.InputImage
+import java.io.FileOutputStream
+import java.io.IOException
 
 
 class DifferenceImagePickerActivity : AppCompatActivity(){
@@ -57,31 +67,6 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
         val hsv = Mat()
         Imgproc.cvtColor(src, hsv, Imgproc.COLOR_BGR2HSV)
         saveMatDirectly(hsv, "1_BGRHSV", context)
-
-//        val lowerBlue = Scalar(90.0, 100.0, 50.0)  // Plus large vers les cyan-bleu
-        //best
-//        val lowerBlue = Scalar(78.0, 40.0, 80.0)
-//        val upperBlue = Scalar(150.0, 255.0, 255.0) // Plus large vers les bleus violets
-
-//        // 🔹 Masque pour ne garder que le bleu
-//        val maskBlue = Mat()
-//        Core.inRange(hsv, lowerBlue, upperBlue, maskBlue)
-//
-//        // Appliquer le masque sur l'image d'origine
-//        val onlyBlue = Mat()
-//        Core.bitwise_and(src, src, onlyBlue, maskBlue)
-//        saveMatDirectly(onlyBlue, "2_only_blueter", context)
-//
-//        // 🔹 Inverser le masque pour enlever le bleu
-//        val maskNoBlue = Mat()
-//        Core.bitwise_not(maskBlue, maskNoBlue)
-//
-//        // Appliquer l'inverse du masque
-//        val noBlue = Mat()
-//        Core.bitwise_and(src, src, noBlue, maskNoBlue)
-//        saveMatDirectly(noBlue, "3_no_blueter", context)
-
-
 
         // Mask 2 : Plus large vers des teintes bleu-vert
 //        val lowerBlue1 = Scalar(78.0, 40.0, 80.0)
@@ -125,30 +110,33 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
         val onlyBlue1 = Mat()
         Core.bitwise_and(src, src, onlyBlue1, maskBlue1)
         saveMatDirectly(onlyBlue1, "2_only_blue_mask1", context)
-        detectAndDrawRectanglesOnMat(onlyBlue1, context, "2_only_blue_mask1")
+        detectAndDrawRectanglesOnMat(onlyBlue1, context, "2_only_blue_mask1", src)
+//        detectAndDrawRectanglesOnMat(onlyBlue1, context, "2_only_blue_mask1")
 
         val onlyBlue2 = Mat()
         Core.bitwise_and(src, src, onlyBlue2, maskBlue2)
         saveMatDirectly(onlyBlue2, "3_only_blue_mask2", context)
-        detectAndDrawRectanglesOnMat(onlyBlue2, context, "3_only_blue_mask2")
+        detectAndDrawRectanglesOnMat(onlyBlue2, context, "3_only_blue_mask2", src)
+//        detectAndDrawRectanglesOnMat(onlyBlue2, context, "3_only_blue_mask2")
 
         val onlyBlue3 = Mat()
         Core.bitwise_and(src, src, onlyBlue3, maskBlue3)
         saveMatDirectly(onlyBlue3, "4_only_blue_mask3", context)
-        detectAndDrawRectanglesOnMat(onlyBlue3, context, "4_only_blue_mask3")
+        detectAndDrawRectanglesOnMat(onlyBlue3, context, "4_only_blue_mask3", src)
+//        detectAndDrawRectanglesOnMat(onlyBlue3, context, "4_only_blue_mask3")
 
 
         val onlyBlue4 = Mat()
         Core.bitwise_and(src, src, onlyBlue4, maskBlue4)
         saveMatDirectly(onlyBlue4, "5_only_blue_mask4", context)
-        detectAndDrawRectanglesOnMat(onlyBlue4, context, "5_only_blue_mask4")
-
-
+        detectAndDrawRectanglesOnMat(onlyBlue4, context, "5_only_blue_mask4", src)
+//        detectAndDrawRectanglesOnMat(onlyBlue4, context, "5_only_blue_mask4")
         src.release()
         hsv.release()
     }
 
-    private fun detectAndDrawRectanglesOnMat(image: Mat, context: Context, imageName: String) {
+
+    private fun detectAndDrawRectanglesOnMat(image: Mat, context: Context, imageName: String, originalMat: Mat) {
         // Convertir l'image en niveaux de gris
         val gray = Mat()
         Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY)
@@ -159,54 +147,133 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
 
         // Créer un masque où les zones non noires sont en blanc et les zones noires en noir
         val maskNonBlack = Mat()
-        Core.inRange(blurred, Scalar(1.0), Scalar(255.0), maskNonBlack)  // On considère tous les pixels qui ne sont pas noirs (intensité > 1)
-        saveMatDirectly(maskNonBlack, "maskNonBlack"+imageName, context)
+        Core.inRange(blurred, Scalar(1.0), Scalar(255.0), maskNonBlack)
+        saveMatDirectly(maskNonBlack, "maskNonBlack_$imageName", context)
 
         // Appliquer une dilatation pour combler les petits trous dans les zones
         val dilated = Mat()
-        val kernel = Mat.ones(5, 5, CvType.CV_8U)  // Utilisation d'un noyau de 5x5 pour dilater
+        val kernel = Mat.ones(5, 5, CvType.CV_8U)
         Imgproc.dilate(maskNonBlack, dilated, kernel)
-        saveMatDirectly(dilated, "dilated"+imageName, context)
-
+        saveMatDirectly(dilated, "dilated_$imageName", context)
 
         // Trouver les contours dans les zones dilatées
         val contours = ArrayList<MatOfPoint>()
         val hierarchy = Mat()
         Imgproc.findContours(dilated, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
 
+        // Liste des rectangles détectés
+        val detectedCards = mutableListOf<Rect>()
+
         // Filtrer les contours en fonction de la taille et de l'aspect ratio
         val filteredContours = contours.filter { contour ->
             val boundingRect = Imgproc.boundingRect(contour)
             val area = Imgproc.contourArea(contour)
             val aspectRatio = boundingRect.width.toDouble() / boundingRect.height.toDouble()
-//            area > 500.0 && area < 20000.0 && aspectRatio in 0.5..2.0  // Ajuster ces valeurs en fonction des cartes
-            area > 40000.0 && area < 200000.0 && aspectRatio in 0.3..0.8  // Ajuster ces valeurs en fonction des cartes
+
+            area > 40000.0 && area < 200000.0 && aspectRatio in 0.3..0.8
         }
 
-        // Tracer des rectangles orange autour des zones détectées
+        // Tracer des rectangles orange autour des zones détectées et les stocker
         for (contour in filteredContours) {
             val boundingRect = Imgproc.boundingRect(contour)
             Imgproc.rectangle(image, boundingRect.tl(), boundingRect.br(), Scalar(0.0, 165.0, 255.0), 3)
+            detectedCards.add(boundingRect)  // ✅ Ajout des cartes détectées
         }
 
         // Sauvegarder l'image avec les rectangles tracés
         saveMatDirectly(image, "detected_rectangles_$imageName", context)
+
+        // 🔥 Extraire les titres des cartes détectées avec ML Kit (⚠️ en passant originalMat)
+        extractTitlesFromCards(context, detectedCards, originalMat, imageName)
     }
 
-//    fun extractTitlesFromCards(context: Context, detectedCards: List<Rect>, originalMat: Mat) {
-//        a integrer
+    fun extractTitlesFromCards(context: Context, detectedCards: List<Rect>, originalMat: Mat, imageName: String) {
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        val detectedTitles = mutableListOf<String>() // ✅ Liste pour stocker les titres
+
+        if (detectedCards.isEmpty()) {
+            Log.e("OCR", "❌ Aucun rectangle détecté !")
+            return
+        }
+
+        for ((index, cardRect) in detectedCards.withIndex()) {
+            Log.d("OCR", "🔍 Traitement de la carte #$index avec Rect: $cardRect")
+
+            // Extraire la zone de la carte
+            val cardMat = Mat(originalMat, cardRect)
+
+            // ✅ Convertir BGR -> RGB avant la conversion en Bitmap
+            val cardMatRGB = Mat()
+            Imgproc.cvtColor(cardMat, cardMatRGB, Imgproc.COLOR_BGR2RGB)
+
+            // Convertir en Bitmap
+            val cardBitmap = Bitmap.createBitmap(cardMatRGB.width(), cardMatRGB.height(), Bitmap.Config.ARGB_8888)
+            Utils.matToBitmap(cardMatRGB, cardBitmap)
+
+            // Définir la zone du titre (12% supérieur, 85% largeur)
+            val titleHeight = (cardBitmap.height * 0.12).toInt()
+            val titleWidth = (cardBitmap.width * 0.85).toInt()
+            val titleBitmap = Bitmap.createBitmap(cardBitmap, 0, 0, titleWidth, titleHeight)
+
+            Log.d("OCR", "📸 Zone du titre extraite pour la carte #$index")
+            saveBitmapDirectly(titleBitmap, "titre $index $imageName", context)
+
+            // Créer une image ML Kit
+            val image = InputImage.fromBitmap(titleBitmap, 0)
+
+            // Lancer l'OCR
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    val detectedTitle = visionText.text.trim()
+                    if (detectedTitle.isNotEmpty()) {
+                        detectedTitles.add(detectedTitle) // ✅ Ajouter le titre trouvé
+                    }
+                    Log.d("OCR", "✅ Titre détecté pour la carte #$index : $detectedTitle")
+
+                    // ✅ Si c'était la dernière carte, copier dans le presse-papiers
+                    if (detectedTitles.size == detectedCards.size) {
+                        copyToClipboard(context, detectedTitles)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("OCR", "❌ Erreur OCR carte #$index : ${e.message}")
+                }
+        }
+    }
+
+//    fun extractTitlesFromCards(context: Context, detectedCards: List<Rect>, originalMat: Mat, imageName: String) {
 //        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 //
+//        if (detectedCards.isEmpty()) {
+//            Log.e("OCR", "❌ Aucun rectangle détecté !")
+//            return
+//        }
+//
 //        for ((index, cardRect) in detectedCards.withIndex()) {
-//            // Convertir l'image OpenCV en Bitmap
-//            val cardBitmap = Bitmap.createBitmap(cardRect.width(), cardRect.height(), Bitmap.Config.ARGB_8888)
-//            Utils.matToBitmap(originalMat.submat(cardRect), cardBitmap)
+//            Log.d("OCR", "🔍 Traitement de la carte #$index avec Rect: $cardRect")
 //
-//            // Découper uniquement le haut de la carte pour récupérer le titre
-//            val titleHeight = (cardRect.height() * 0.2).toInt() // Prend les 20% du haut
-//            val titleRect = Rect(0, 0, cardBitmap.width, titleHeight)
-//            val titleBitmap = Bitmap.createBitmap(cardBitmap, titleRect.left, titleRect.top, titleRect.width(), titleRect.height())
+//            // Extraire la zone de la carte
+//            val cardMat = Mat(originalMat, cardRect)
 //
+//            // Convertir BGR -> RGB avant la conversion en Bitmap
+//            val cardMatRGB = Mat()
+//            Imgproc.cvtColor(cardMat, cardMatRGB, Imgproc.COLOR_BGR2RGB)
+//
+//            // Convertir en Bitmap
+//            val cardBitmap = Bitmap.createBitmap(cardMatRGB.width(), cardMatRGB.height(), Bitmap.Config.ARGB_8888)
+//            Utils.matToBitmap(cardMatRGB, cardBitmap)
+//
+////            // Convertir en Bitmap
+////            val cardBitmap = Bitmap.createBitmap(cardMat.width(), cardMat.height(), Bitmap.Config.ARGB_8888)
+////            Utils.matToBitmap(cardMat, cardBitmap)
+//
+//            // Définir la zone du titre (20% supérieur)
+//            val titleHeight = (cardBitmap.height * 0.12).toInt()
+//            val titleWidth = (cardBitmap.width * 0.85).toInt()
+//            val titleBitmap = Bitmap.createBitmap(cardBitmap, 0, 0, titleWidth, titleHeight)
+//
+//            Log.d("OCR", "📸 Zone du titre extraite pour la carte #$index")
+//            saveBitmapDirectly(titleBitmap, "titre $index $imageName", context)
 //            // Créer une image ML Kit
 //            val image = InputImage.fromBitmap(titleBitmap, 0)
 //
@@ -214,89 +281,22 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
 //            recognizer.process(image)
 //                .addOnSuccessListener { visionText ->
 //                    val detectedTitle = visionText.text.trim()
-//                    Log.d("OCR", "Titre détecté pour la carte #$index : $detectedTitle")
+//                    Log.d("OCR", "✅ Titre détecté pour la carte #$index : $detectedTitle")
 //                }
 //                .addOnFailureListener { e ->
-//                    Log.e("OCR", "Erreur de reconnaissance du titre : ${e.message}")
+//                    Log.e("OCR", "❌ Erreur OCR carte #$index : ${e.message}")
 //                }
 //        }
 //    }
 
+    fun copyToClipboard(context: Context, titles: List<String>) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val textToCopy = titles.joinToString("\n") // ✅ Joindre les titres avec un saut de ligne
+        val clip = ClipData.newPlainText("Detected Titles", textToCopy)
+        clipboard.setPrimaryClip(clip)
 
-
-    //threshold caca
-//    private fun detectAndDrawRectanglesOnMat(image: Mat, context: Context, imageName: String) {
-//        // Convertir l'image en niveaux de gris
-//        val gray = Mat()
-//        Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY)
-//        saveMatDirectly(gray, "gray"+imageName, context)
-//
-//        // Appliquer un seuil pour isoler les cartes
-//        val threshold = Mat()
-//        Imgproc.threshold(gray, threshold, 127.0, 255.0, Imgproc.THRESH_BINARY)
-//        saveMatDirectly(threshold, "threshold"+imageName, context)
-//
-//
-//        // Détecter les contours dans l'image
-//        val contours = ArrayList<MatOfPoint>()
-//        val hierarchy = Mat()
-//        Imgproc.findContours(threshold, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
-//        saveMatDirectly(hierarchy, "hierarchy"+imageName, context)
-//
-//
-//        // Tracer des rectangles orange autour des cartes détectées
-//        for (contour in contours) {
-//            val boundingRect = Imgproc.boundingRect(contour)
-//            Imgproc.rectangle(image, boundingRect.tl(), boundingRect.br(), Scalar(0.0, 165.0, 255.0), 3)
-//        }
-//
-//        // Sauvegarder l'image avec les rectangles tracés
-//        saveMatDirectly(image, "detected_rectangles_$imageName", context)
-//    }
-
-
-
-//    //canny fout la merde et segment l'image. à parametrer?
-//    private fun detectAndDrawRectanglesOnMat(image: Mat, context: Context, imageName: String) {
-//        // Convertir l'image en niveaux de gris
-//        val gray = Mat()
-//        Imgproc.cvtColor(image, gray, Imgproc.COLOR_BGR2GRAY)
-//        saveMatDirectly(gray, "gray"+imageName, context)
-//
-//        // Appliquer une réduction de bruit pour améliorer les contours
-//        val blurred = Mat()
-//        Imgproc.GaussianBlur(gray, blurred, Size(5.0, 5.0), 0.0)
-//        saveMatDirectly(blurred, "blurred"+imageName, context)
-//
-//
-//        // Détecter les contours en utilisant Canny (cela permet de capturer les bordures)
-//        val edges = Mat()
-//        Imgproc.Canny(blurred, edges, 50.0, 150.0)
-//        saveMatDirectly(edges, "edges"+imageName, context)
-//
-//
-//        // Trouver les contours dans l'image des bords
-//        val contours = ArrayList<MatOfPoint>()
-//        val hierarchy = Mat()
-//        Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
-//
-//        // Filtrer les contours pour exclure les petites zones (en fonction de la taille de la carte)
-//        val filteredContours = contours.filter { contour ->
-//            val boundingRect = Imgproc.boundingRect(contour)
-//            val area = Imgproc.contourArea(contour)
-//            val aspectRatio = boundingRect.width.toDouble() / boundingRect.height.toDouble()
-//            area > 500.0 && area < 20000.0 && aspectRatio in 0.5..2.0
-//        }
-//
-//        // Tracer des rectangles orange autour des cartes détectées
-//        for (contour in filteredContours) {
-//            val boundingRect = Imgproc.boundingRect(contour)
-//            Imgproc.rectangle(image, boundingRect.tl(), boundingRect.br(), Scalar(0.0, 165.0, 255.0), 3)
-//        }
-//
-//        // Sauvegarder l'image avec les rectangles tracés
-//        saveMatDirectly(image, "detected_rectangles_$imageName", context)
-//    }
+        Toast.makeText(context, "📋 Titres copiés dans le presse-papiers !", Toast.LENGTH_SHORT).show()
+    }
 
 
 
@@ -307,6 +307,18 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
         val file = File(context.cacheDir, "$filename.png")
         Imgcodecs.imwrite(file.absolutePath, mat)
         Log.d("ImageProcessing", "Image enregistrée : ${file.absolutePath}")
+    }
+
+    private fun saveBitmapDirectly(bitmap: Bitmap, filename: String, context: Context) {
+        val file = File(context.cacheDir, "$filename.png")
+        try {
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+            Log.d("ImageProcessing", "Image enregistrée : ${file.absolutePath}")
+        } catch (e: IOException) {
+            Log.e("ImageProcessing", "Erreur lors de l'enregistrement de l'image : ${e.message}")
+        }
     }
 
 

@@ -15,5 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AutoclickerFusionBuild"
 include(":app")
-include(":opencv")
  
