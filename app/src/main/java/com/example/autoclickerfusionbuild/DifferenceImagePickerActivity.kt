@@ -290,7 +290,7 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
 //    }
 
     fun copyToClipboard(context: Context, titles: List<String>) {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         val textToCopy = titles.joinToString("\n") // ✅ Joindre les titres avec un saut de ligne
         val clip = ClipData.newPlainText("Detected Titles", textToCopy)
         clipboard.setPrimaryClip(clip)
@@ -326,7 +326,7 @@ class DifferenceImagePickerActivity : AppCompatActivity(){
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == Activity.RESULT_OK) {
+        if (requestCode == REQUEST_CODE_PICK_IMAGE && resultCode == RESULT_OK) {
             val selectedImageUri: Uri? = data?.data
             selectedImageUri?.let {
 
