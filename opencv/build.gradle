@@ -90,7 +90,7 @@
 
 apply plugin: 'com.android.library'
 apply plugin: 'maven-publish'
-apply plugin: 'kotlin-android'
+//apply plugin: 'kotlin-android'
 
 def openCVersionName = "4.10.0"
 def openCVersionCode = ((4 * 100 + 10) * 100 + 0) * 10 + 0
@@ -99,11 +99,13 @@ println "OpenCV: " +openCVersionName + " " + project.buildscript.sourceFile
 
 android {
     namespace 'org.opencv'
-    compileSdk 35
+    compileSdk 31
+//    compileSdkVersion 31
 
     defaultConfig {
-        minSdkVersion 34
-        targetSdkVersion 35
+        minSdk 21
+//        minSdkVersion 21
+//        targetSdkVersion 31
 
         versionCode openCVersionCode
         versionName openCVersionName
@@ -117,8 +119,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     buildTypes {
@@ -167,7 +169,6 @@ android {
             path (project.projectDir.toString() + '/libcxx_helper/CMakeLists.txt')
         }
     }
-    buildToolsVersion '34.0.0'
 }
 
 publishing {

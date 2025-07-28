@@ -1,2 +1,0 @@
-ninja: Entering directory `C:\Users\samue\AndroidStudioProjects\AutoclickerFusionBuild\opencv\.cxx\Debug\5o461l3j\x86_64'
-ninja: no work to do.
